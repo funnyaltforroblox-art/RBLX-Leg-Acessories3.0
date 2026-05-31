@@ -4,15 +4,17 @@ repeat task.wait() until game:IsLoaded()
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 repeat task.wait() until player:FindFirstChild("PlayerGui")
 
 local FOLDER_NAME = "LowerBodyCustomizer_Presets"
-local HAS_FILESYSTEM = (makefolder ~= nil) and (writefile ~= nil) and (readfile ~= nil) and (listfiles ~= nil)
+
+-- Safely check the environment table for filesystem functions to prevent nil-value panics
+local env = getfenv()
+local HAS_FILESYSTEM = (env.makefolder ~= nil) and (env.writefile ~= nil) and (env.readfile ~= nil) and (env.listfiles ~= nil)
 
 if HAS_FILESYSTEM then
-	pcall(function() makefolder(FOLDER_NAME) end)
+	pcall(function() env.makefolder(FOLDER_NAME) end)
 end
 
 local accessoryList = {
@@ -26,12 +28,6 @@ local accessoryList = {
 }
 local selectedIndex = 1
 local selectedSubPartName = "Handle"
-
-local isExploded = false
-local originalPositions = {}
-local originalAnchoredStates = {} 
-local activeTweens = {}
-local EXPLODE_DISTANCE = 4.0 
 local currentHighlightBox = nil
 
 local function clearActiveHighlight()
@@ -135,9 +131,6 @@ local function clearPhysicalAccessories()
 			end
 		end
 	end
-	table.clear(originalPositions)
-	table.clear(originalAnchoredStates)
-	isExploded = false
 end
 
 local function applyAllAccessories()
@@ -275,17 +268,27 @@ mainBtnCorner.CornerRadius = UDim.new(0, 8)
 mainBtnCorner.Parent = toggleBtn
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 720, 0, 350)
-frame.Position = UDim2.new(0.5, -360, 0.5, -175)
+frame.Size = UDim2.new(0, 720, 0, 310) -- Slightly shorter frame since inspect is gone
+frame.Position = UDim2.new(0.5, -360, 0.5, -155)
 frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 frame.BorderSizePixel = 2
 frame.Visible = true
 frame.Parent = sgui
 
-local dragging, dragInput, dragStart, startPos
+-- Mobile & PC Optimized Dragging Engine
+local dragging = false
+local dragInput
+local dragStart
+local startPos
+
 local function updateDrag(input)
 	local delta = input.Position - dragStart
-	toggleBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	toggleBtn.Position = UDim2.new(
+		startPos.X.Scale, 
+		startPos.X.Offset + delta.X, 
+		startPos.Y.Scale, 
+		startPos.Y.Offset + delta.Y
+	)
 end
 
 toggleBtn.InputBegan:Connect(function(input)
@@ -293,18 +296,25 @@ toggleBtn.InputBegan:Connect(function(input)
 		dragging = true
 		dragStart = input.Position
 		startPos = toggleBtn.Position
+		
 		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then dragging = false end
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
 		end)
 	end
 end)
 
 toggleBtn.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		dragInput = input
+	end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-	if input == dragInput and dragging then updateDrag(input) end
+	if input == dragInput and dragging then
+		updateDrag(input)
+	end
 end)
 
 toggleBtn.MouseButton1Click:Connect(function() 
@@ -326,20 +336,20 @@ title.TextSize = 15
 title.Parent = frame
 
 local slotPanel = Instance.new("ScrollingFrame")
-slotPanel.Size = UDim2.new(0, 180, 0, 305)
+slotPanel.Size = UDim2.new(0, 180, 0, 265)
 slotPanel.Position = UDim2.new(0, 10, 0, 35)
 slotPanel.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 slotPanel.CanvasSize = UDim2.new(0, 0, 2, 0)
 slotPanel.Parent = frame
 
 local editPanel = Instance.new("Frame")
-editPanel.Size = UDim2.new(0, 320, 0, 305)
+editPanel.Size = UDim2.new(0, 320, 0, 265)
 editPanel.Position = UDim2.new(0, 200, 0, 35)
 editPanel.BackgroundTransparency = 1
 editPanel.Parent = frame
 
 local presetPanel = Instance.new("ScrollingFrame")
-presetPanel.Size = UDim2.new(0, 180, 0, 265)
+presetPanel.Size = UDim2.new(0, 180, 0, 225)
 presetPanel.Position = UDim2.new(0, 530, 0, 35)
 presetPanel.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 presetPanel.CanvasSize = UDim2.new(0, 0, 2, 0)
@@ -481,7 +491,6 @@ idBox.FocusLost:Connect(function()
 	end
 end)
 
--- Shift target configurations natively to R6 Legs mapping bounds
 local targets = {"Left Leg", "Right Leg"}
 local targetButtons = {}
 
@@ -509,7 +518,7 @@ end
 
 local applyBtn = Instance.new("TextButton")
 applyBtn.Size = UDim2.new(0, 150, 0, 32)
-applyBtn.Position = UDim2.new(0, 165, 0, 232)
+applyBtn.Position = UDim2.new(0, 165, 0, 230)
 applyBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
 applyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 applyBtn.Text = "APPLY ALL"
@@ -517,114 +526,6 @@ applyBtn.Font = Enum.Font.SourceSansBold
 applyBtn.TextSize = 14
 applyBtn.Parent = editPanel
 applyBtn.MouseButton1Click:Connect(applyAllAccessories)
-
-local inspectBtn = Instance.new("TextButton")
-inspectBtn.Size = UDim2.new(0, 315, 0, 32)
-inspectBtn.Position = UDim2.new(0, 0, 0, 270)
-inspectBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
-inspectBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-inspectBtn.Text = "INSPECT INDIVIDUAL PARTS"
-inspectBtn.Font = Enum.Font.SourceSansBold
-inspectBtn.TextSize = 13
-inspectBtn.Parent = editPanel
-
-local inspectBtnStroke = Instance.new("UIStroke")
-inspectBtnStroke.Color = Color3.fromRGB(0, 150, 255)
-inspectBtnStroke.Thickness = 1.5
-inspectBtnStroke.Parent = inspectBtn
-
-local inspectBtnCorner = Instance.new("UICorner")
-inspectBtnCorner.CornerRadius = UDim.new(0, 6)
-inspectBtnCorner.Parent = inspectBtn
-
-local function togglePartExplosion()
-	local character = player.Character
-	if not character then return end
-
-	for _, tween in ipairs(activeTweens) do tween:Cancel() end
-	table.clear(activeTweens)
-
-	isExploded = not isExploded
-
-	if isExploded then
-		clearActiveHighlight()
-		inspectBtn.Text = "COMBINE CUSTOM MODELS"
-		inspectBtn.BackgroundColor3 = Color3.fromRGB(150, 35, 35)
-		inspectBtnStroke.Color = Color3.fromRGB(255, 100, 100)
-
-		table.clear(originalPositions)
-		table.clear(originalAnchoredStates)
-		
-		for _, child in ipairs(character:GetChildren()) do
-			if child:IsA("Accessory") and string.sub(child.Name, 1, 10) == "CustomLeg_" then
-				local handle = child:FindFirstChild("Handle")
-				if handle then
-					originalPositions[handle] = handle.CFrame
-					originalAnchoredStates[handle] = handle.Anchored
-					handle.Anchored = true 
-
-					for _, subPart in ipairs(child:GetDescendants()) do
-						if subPart:IsA("BasePart") then
-							originalPositions[subPart] = subPart.CFrame
-							originalAnchoredStates[subPart] = subPart.Anchored
-							subPart.Anchored = true 
-						end
-					end
-				end
-			end
-		end
-
-		task.wait(0.05) 
-
-		for part, origCFrame in pairs(originalPositions) do
-			if part and part.Parent then
-				local innerWeld = part:FindFirstChild("ModelInnerWeld") or part:FindFirstChild("AccessoryWeld")
-				if innerWeld then innerWeld.Enabled = false end
-
-				local parentAccessory = part:FindFirstAncestorOfClass("Accessory")
-				local handle = parentAccessory and parentAccessory:FindFirstChild("Handle")
-				local centerPos = handle and handle.Position or character:GetPivot().Position
-				
-				local direction = (part.Position - centerPos).Unit
-				if direction.Magnitude == 0 or tostring(direction) == "NAN, NAN, NAN" then
-					direction = Vector3.new(0, 1, 0)
-				end
-
-				local explodedPosition = origCFrame.Position + (direction * EXPLODE_DISTANCE)
-				local targetCFrame = CFrame.new(explodedPosition) * (origCFrame - origCFrame.Position)
-
-				local tween = TweenService:Create(part, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {CFrame = targetCFrame})
-				table.insert(activeTweens, tween)
-				tween:Play()
-			end
-		end
-	else
-		inspectBtn.Text = "INSPECT INDIVIDUAL PARTS"
-		inspectBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
-		inspectBtnStroke.Color = Color3.fromRGB(0, 150, 255)
-
-		for part, origCFrame in pairs(originalPositions) do
-			if part and part.Parent then
-				local tween = TweenService:Create(part, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {CFrame = origCFrame})
-				table.insert(activeTweens, tween)
-				
-				tween.Completed:Connect(function()
-					if part and part.Parent then
-						local innerWeld = part:FindFirstChild("ModelInnerWeld") or part:FindFirstChild("AccessoryWeld")
-						if innerWeld then innerWeld.Enabled = true end
-						task.wait()
-						part.Anchored = originalAnchoredStates[part] or false
-					end
-				end)
-				tween:Play()
-			end
-		end
-		task.wait(0.35)
-		highlightSelectedSubPart()
-	end
-end
-
-inspectBtn.MouseButton1Click:Connect(togglePartExplosion)
 
 updateEditUI = function()
 	local data = accessoryList[selectedIndex]
@@ -731,7 +632,7 @@ end
 
 local savePanel = Instance.new("Frame")
 savePanel.Size = UDim2.new(0, 180, 0, 35)
-savePanel.Position = UDim2.new(0, 530, 0, 305)
+savePanel.Position = UDim2.new(0, 530, 0, 265)
 savePanel.BackgroundTransparency = 1
 savePanel.Parent = frame
 
@@ -758,11 +659,11 @@ saveBtn.MouseButton1Click:Connect(function()
 	local name = presetNameBox.Text
 	if name ~= "" and name ~= "PresetName" and name ~= "Saved!" and name ~= "Updated!" and HAS_FILESYSTEM then
 		local targetFilePath = FOLDER_NAME .. "/" .. name .. ".txt"
-		local fileExists = pcall(function() return readfile(targetFilePath) end)
+		local fileExists = pcall(function() return env.readfile(targetFilePath) end)
 		
 		local json = HttpService:JSONEncode(accessoryList)
 		local success = pcall(function()
-			writefile(targetFilePath, json)
+			env.writefile(targetFilePath, json)
 		end)
 		
 		if success then
@@ -790,7 +691,7 @@ updatePresetUI = function()
 	pLayout.Padding = UDim.new(0, 4)
 	pLayout.Parent = presetPanel
 	
-	local success, files = pcall(function() return listfiles(FOLDER_NAME) end)
+	local success, files = pcall(function() return env.listfiles(FOLDER_NAME) end)
 	if not success or not files then return end
 	
 	for _, path in ipairs(files) do
@@ -810,7 +711,7 @@ updatePresetUI = function()
 			loadBtn.Parent = pFrame
 			
 			loadBtn.MouseButton1Click:Connect(function()
-				local dataSuccess, content = pcall(function() return readfile(path) end)
+				local dataSuccess, content = pcall(function() return env.readfile(path) end)
 				if dataSuccess then
 					local tableSuccess, decoded = pcall(function() return HttpService:JSONDecode(content) end)
 					if tableSuccess and type(decoded) == "table" then
@@ -840,3 +741,4 @@ end)
 if player.Character then
 	task.spawn(applyAllAccessories)
 end
+
