@@ -9,12 +9,11 @@ repeat task.wait() until player:FindFirstChild("PlayerGui")
 
 local FOLDER_NAME = "LowerBodyCustomizer_Presets"
 
--- Safely check the environment table for filesystem functions to prevent nil-value panics
-local env = getfenv()
-local HAS_FILESYSTEM = (env.makefolder ~= nil) and (env.writefile ~= nil) and (env.readfile ~= nil) and (env.listfiles ~= nil)
+-- Bypassed environment checking to completely prevent line 1 nil errors
+local HAS_FILESYSTEM = (makefolder ~= nil) and (writefile ~= nil) and (readfile ~= nil) and (listfiles ~= nil)
 
 if HAS_FILESYSTEM then
-	pcall(function() env.makefolder(FOLDER_NAME) end)
+	pcall(function() makefolder(FOLDER_NAME) end)
 end
 
 local accessoryList = {
@@ -268,7 +267,7 @@ mainBtnCorner.CornerRadius = UDim.new(0, 8)
 mainBtnCorner.Parent = toggleBtn
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 720, 0, 310) -- Slightly shorter frame since inspect is gone
+frame.Size = UDim2.new(0, 720, 0, 310)
 frame.Position = UDim2.new(0.5, -360, 0.5, -155)
 frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 frame.BorderSizePixel = 2
@@ -659,11 +658,11 @@ saveBtn.MouseButton1Click:Connect(function()
 	local name = presetNameBox.Text
 	if name ~= "" and name ~= "PresetName" and name ~= "Saved!" and name ~= "Updated!" and HAS_FILESYSTEM then
 		local targetFilePath = FOLDER_NAME .. "/" .. name .. ".txt"
-		local fileExists = pcall(function() return env.readfile(targetFilePath) end)
+		local fileExists = pcall(function() return readfile(targetFilePath) end)
 		
 		local json = HttpService:JSONEncode(accessoryList)
 		local success = pcall(function()
-			env.writefile(targetFilePath, json)
+			writefile(targetFilePath, json)
 		end)
 		
 		if success then
@@ -691,7 +690,7 @@ updatePresetUI = function()
 	pLayout.Padding = UDim.new(0, 4)
 	pLayout.Parent = presetPanel
 	
-	local success, files = pcall(function() return env.listfiles(FOLDER_NAME) end)
+	local success, files = pcall(function() return listfiles(FOLDER_NAME) end)
 	if not success or not files then return end
 	
 	for _, path in ipairs(files) do
@@ -711,7 +710,7 @@ updatePresetUI = function()
 			loadBtn.Parent = pFrame
 			
 			loadBtn.MouseButton1Click:Connect(function()
-				local dataSuccess, content = pcall(function() return env.readfile(path) end)
+				local dataSuccess, content = pcall(function() return readfile(path) end)
 				if dataSuccess then
 					local tableSuccess, decoded = pcall(function() return HttpService:JSONDecode(content) end)
 					if tableSuccess and type(decoded) == "table" then
