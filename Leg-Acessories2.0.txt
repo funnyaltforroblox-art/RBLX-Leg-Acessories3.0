@@ -1,4 +1,4 @@
--- Lower Body/Leg Mesh & Model Customizer (R6 Wide Layout - 15-Digit Precision String Engine)
+-- Lower Body/Leg Mesh & Model Customizer (R6 Wide Layout - UGC Attachment Engine Fix)
 repeat task.wait() until game:IsLoaded()
 
 local Players = game:GetService("Players")
@@ -17,7 +17,7 @@ end)
 
 local accessoryList = {
 	{
-		id = "17121838966", -- Stored as string to preserve 15+ digit precision
+		id = "17121838966", 
 		targetPart = "Left Leg", 
 		offsetX = 0, offsetY = 0, offsetZ = 0, 
 		rotateX = 0, rotateY = 0, rotateZ = 0, 
@@ -56,7 +56,6 @@ local function applyAllAccessories()
 
 		local limb = character:FindFirstChild(targetLimbName)
 		if limb then
-			-- Enforce strict string formatting to prevent 64-bit float degradation on 15-digit IDs
 			local cleanIDStr = string.match(tostring(data.id), "^%d+") or "17121838966"
 			
 			local success, assetModel = pcall(function()
@@ -64,11 +63,11 @@ local function applyAllAccessories()
 			end)
 			
 			if not success or not assetModel then
-				warn("Leg Customizer Precision Error: Failed to load 15-Digit ID [" .. cleanIDStr .. "] in Slot " .. tostring(index))
+				warn("Leg Customizer Error: Failed to fetch ID [" .. cleanIDStr .. "]")
 				if applyBtn then
 					applyBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
-					applyBtn.Text = "ERR: SLOT " .. tostring(index) .. " FETCH"
-					task.delay(2.5, function()
+					applyBtn.Text = "FETCH ERR: SLOT " .. tostring(index)
+					task.delay(2, function()
 						applyBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
 						applyBtn.Text = "APPLY ALL"
 					end)
@@ -83,14 +82,22 @@ local function applyAllAccessories()
 					assetModel.Parent = wrapperModel
 				end
 
+				-- Locate or instantiate the physical root component
 				local handle = wrapperModel:FindFirstChild("Handle") or wrapperModel:FindFirstChildWhichIsA("BasePart", true)
+				if not handle then
+					-- If it's a naked MeshPart without a wrapper, transform it into a handle
+					handle = wrapperModel:FindFirstChildWhichIsA("MeshPart") or wrapperModel:FindFirstChildWhichIsA("BasePart")
+				end
+				
 				if not handle then
 					pcall(function() wrapperModel:Destroy() end)
 					continue
 				end
+				
 				handle.Name = "Handle"
 				wrapperModel.PrimaryPart = handle
 
+				-- Strip physical collisions and unanchor components cleanly
 				for _, obj in ipairs(wrapperModel:GetDescendants()) do
 					if obj:IsA("BasePart") then
 						obj.Anchored = false
@@ -108,6 +115,7 @@ local function applyAllAccessories()
 					wrapperModel:Scale(targetScaleFactor)
 				end)
 
+				-- Re-weld internal sub-parts if it is a compound model array
 				for _, obj in ipairs(wrapperModel:GetDescendants()) do
 					if obj:IsA("BasePart") and obj ~= handle then
 						local innerWeld = Instance.new("WeldConstraint")
@@ -122,25 +130,32 @@ local function applyAllAccessories()
 				accessory.Name = "CustomLeg_" .. tostring(index)
 				accessory:SetAttribute("CustomLeg", true)
 				
+				-- Modern UGC Rigging Engine Compatibility Fix
+				local attName = (targetLimbName == "Left Leg") and "LeftGripAttachment" or "RightGripAttachment"
+				local handleAttachment = Instance.new("Attachment")
+				handleAttachment.Name = attName
+				
+				-- Apply inverse user offset directly to the internal structural attachment point
+				local positionOffset = CFrame.new(data.offsetX, data.offsetY, data.offsetZ)
+				local rotationOffset = CFrame.Angles(math.rad(data.rotateX), math.rad(data.rotateY), math.rad(data.rotateZ))
+				handleAttachment.CFrame = positionOffset * rotationOffset
+				handleAttachment.Parent = handle
+
 				for _, child in ipairs(wrapperModel:GetChildren()) do
 					child.Parent = accessory
 				end
 				pcall(function() wrapperModel:Destroy() end)
 
-				local customHandle = accessory:FindFirstChild("Handle")
-				if customHandle then
-					local weld = Instance.new("Weld")
-					weld.Name = "AccessoryWeld"
-					weld.Part0 = customHandle
-					weld.Part1 = limb
-					
-					local positionOffset = CFrame.new(data.offsetX, data.offsetY, data.offsetZ)
-					local rotationOffset = CFrame.Angles(math.rad(data.rotateX), math.rad(data.rotateY), math.rad(data.rotateZ))
-					
-					weld.C0 = positionOffset * rotationOffset
-					weld.Parent = customHandle
-					
-					accessory.Parent = character
+				-- Safely link the custom asset directly onto the target character limb hierarchy
+				accessory.Parent = character
+				
+				-- Force alignment refresh for non-standard MeshParts
+				local limbAttachment = limb:FindFirstChild(attName)
+				if not limbAttachment then
+					limbAttachment = Instance.new("Attachment")
+					limbAttachment.Name = attName
+					limbAttachment.Position = Vector3.new(0, -1, 0) -- Match baseline standard R6 leg bottom floor coordinates
+					limbAttachment.Parent = limb
 				end
 			end
 		end
@@ -528,7 +543,6 @@ updatePresetUI = function()
 				if not readfile then return end
 				local dataSuccess, content = pcall(function() return readfile(path) end)
 				if dataSuccess then
-					-- Pre-process raw JSON text stream to anchor massive IDs as string values before standard JSON decoding alters precision numbers
 					local protectedContent = string.gsub(content, '"id"%s*:%s*(%d+)', '"id":"%1"')
 					
 					local tableSuccess, decoded = pcall(function() return HttpService:JSONDecode(protectedContent) end)
