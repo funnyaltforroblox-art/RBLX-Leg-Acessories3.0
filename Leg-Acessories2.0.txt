@@ -1,4 +1,4 @@
--- Lower Body/Leg Mesh & Model Customizer (R6 Wide Layout - Fixed Asset Welder)
+-- Lower Body/Leg Mesh & Model Customizer (R6 Wide Layout - Legacy Target Part Fix)
 repeat task.wait() until game:IsLoaded()
 
 local Players = game:GetService("Players")
@@ -47,21 +47,26 @@ local function applyAllAccessories()
 	clearPhysicalAccessories()
 	
 	for index, data in ipairs(accessoryList) do
-		local limb = character:FindFirstChild(data.targetPart)
+		-- Safety Fallback: Ensure there is ALWAYS a valid target limb assigned
+		local targetLimbName = data.targetPart
+		if not targetLimbName or (targetLimbName ~= "Left Leg" and targetLimbName ~= "Right Leg") then
+			targetLimbName = "Left Leg"
+			data.targetPart = "Left Leg"
+		end
+
+		local limb = character:FindFirstChild(targetLimbName)
 		if limb then
 			local success, assetModel = pcall(function()
 				return game:GetObjects("rbxassetid://" .. data.id)[1]
 			end)
 			
 			if success and assetModel then
-				-- Normalize structure to ensure it's a Model container for safe scaling
 				local wrapperModel = assetModel
 				if not assetModel:IsA("Model") then
 					wrapperModel = Instance.new("Model")
 					assetModel.Parent = wrapperModel
 				end
 
-				-- Locate or establish a reliable core handle piece
 				local handle = wrapperModel:FindFirstChild("Handle") or wrapperModel:FindFirstChildWhichIsA("BasePart", true)
 				if not handle then
 					pcall(function() wrapperModel:Destroy() end)
@@ -70,7 +75,6 @@ local function applyAllAccessories()
 				handle.Name = "Handle"
 				wrapperModel.PrimaryPart = handle
 
-				-- Clean out restrictive constraints, anchors, and internal welds
 				for _, obj in ipairs(wrapperModel:GetDescendants()) do
 					if obj:IsA("BasePart") then
 						obj.Anchored = false
@@ -81,7 +85,6 @@ local function applyAllAccessories()
 					end
 				end
 
-				-- Apply uniform structural model scale (averages scaling factors cleanly)
 				local targetScaleFactor = (data.scaleX + data.scaleY + data.scaleZ) / 3
 				if targetScaleFactor <= 0 then targetScaleFactor = 1 end
 				
@@ -89,7 +92,6 @@ local function applyAllAccessories()
 					wrapperModel:Scale(targetScaleFactor)
 				end)
 
-				-- Securely anchor all interior parts to the main handle piece
 				for _, obj in ipairs(wrapperModel:GetDescendants()) do
 					if obj:IsA("BasePart") and obj ~= handle then
 						local innerWeld = Instance.new("WeldConstraint")
@@ -100,18 +102,15 @@ local function applyAllAccessories()
 					end
 				end
 
-				-- Construct the accessory assembly and parent it to your character
 				local accessory = Instance.new("Accessory")
 				accessory.Name = "CustomLeg_" .. tostring(index)
 				accessory:SetAttribute("CustomLeg", true)
 				
-				-- Extract all functional parts into the accessory envelope
 				for _, child in ipairs(wrapperModel:GetChildren()) do
 					child.Parent = accessory
 				end
 				pcall(function() wrapperModel:Destroy() end)
 
-				-- Re-verify handle attachment availability
 				local customHandle = accessory:FindFirstChild("Handle")
 				if customHandle then
 					local weld = Instance.new("Weld")
@@ -369,7 +368,9 @@ updateSlotUI = function()
 		selBtn.Size = UDim2.new(0, 120, 1, 0)
 		selBtn.BackgroundColor3 = (i == selectedIndex) and Color3.fromRGB(0, 90, 160) or Color3.fromRGB(40, 40, 40)
 		selBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-		local limbAbbr = (data.targetPart == "Left Leg") and "LL" or "RL"
+		
+		local targetLimbName = data.targetPart or "Left Leg"
+		local limbAbbr = (targetLimbName == "Left Leg") and "LL" or "RL"
 		selBtn.Text = "Slot " .. tostring(i) .. " (" .. limbAbbr .. ")"
 		selBtn.Font = Enum.Font.SourceSans
 		selBtn.TextSize = 13
@@ -513,22 +514,30 @@ updatePresetUI = function()
 					local tableSuccess, decoded = pcall(function() return HttpService:JSONDecode(content) end)
 					if tableSuccess and type(decoded) == "table" then
 						
-						-- Backward Translation translation layer (Converts old granular partsData configs safely)
+						-- Translation Translation Engine with Target Limb Auto-Detection Fix
 						for slotIdx, config in ipairs(decoded) do
-							if type(config) == "table" and config.partsData then
-								local hData = config.partsData["Handle"]
-								if hData then
-									config.offsetX = hData.offsetX or config.offsetX or 0
-									config.offsetY = hData.offsetY or config.offsetY or 0
-									config.offsetZ = hData.offsetZ or config.offsetZ or 0
-									config.rotateX = hData.rotateX or config.rotateX or 0
-									config.rotateY = hData.rotateY or config.rotateY or 0
-									config.rotateZ = hData.rotateZ or config.rotateZ or 0
-									config.scaleX = hData.scaleX or config.scaleX or 1
-									config.scaleY = hData.scaleY or config.scaleY or 1
-									config.scaleZ = hData.scaleZ or config.scaleZ or 1
+							if type(config) == "table" then
+								-- Build granular translation if it originally used sub-part formatting structures
+								if config.partsData then
+									local hData = config.partsData["Handle"]
+									if hData then
+										config.offsetX = hData.offsetX or config.offsetX or 0
+										config.offsetY = hData.offsetY or config.offsetY or 0
+										config.offsetZ = hData.offsetZ or config.offsetZ or 0
+										config.rotateX = hData.rotateX or config.rotateX or 0
+										config.rotateY = hData.rotateY or config.rotateY or 0
+										config.rotateZ = hData.rotateZ or config.rotateZ or 0
+										config.scaleX = hData.scaleX or config.scaleX or 1
+										config.scaleY = hData.scaleY or config.scaleY or 1
+										config.scaleZ = hData.scaleZ or config.scaleZ or 1
+									end
+									config.partsData = nil
 								end
-								config.partsData = nil
+
+								-- Auto-correction protection layer for lost target strings
+								if not config.targetPart or (config.targetPart ~= "Left Leg" and config.targetPart ~= "Right Leg") then
+									config.targetPart = "Left Leg"
+								end
 							end
 						end
 						
