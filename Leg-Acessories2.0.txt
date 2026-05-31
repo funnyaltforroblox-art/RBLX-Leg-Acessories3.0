@@ -7,7 +7,8 @@ local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 repeat task.wait() until player:FindFirstChild("PlayerGui")
 
-local FOLDER_NAME = "LowerBodyCustomizer_Presets"
+-- Pointing back to your original preset storage folder
+local FOLDER_NAME = "LegCustomizer_Presets"
 
 -- Wrap filesystem initialization securely to prevent sandbox panics
 pcall(function()
@@ -337,7 +338,7 @@ title.Parent = frame
 local slotPanel = Instance.new("ScrollingFrame")
 slotPanel.Size = UDim2.new(0, 180, 0, 265)
 slotPanel.Position = UDim2.new(0, 10, 0, 35)
-slotPanel.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+slotPanel.BackgroundColor3 = Color3.fromRGB(255, 25, 25)
 slotPanel.CanvasSize = UDim2.new(0, 0, 2, 0)
 slotPanel.Parent = frame
 
@@ -659,7 +660,6 @@ saveBtn.MouseButton1Click:Connect(function()
 	if name ~= "" and name ~= "PresetName" and name ~= "Saved!" and name ~= "Updated!" then
 		local targetFilePath = FOLDER_NAME .. "/" .. name .. ".txt"
 		
-		-- Use pcall inside workspace execution logic to dodge sandbox checks completely
 		local fileExists = false
 		if readfile then
 			pcall(function() fileExists = readfile(targetFilePath) ~= nil end)
