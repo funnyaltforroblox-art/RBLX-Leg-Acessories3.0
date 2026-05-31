@@ -1,4 +1,4 @@
--- Lower Body/Leg Mesh & Model Customizer (R6 Wide Layout - Shared Presets + Superscript Label)
+-- Lower Body/Leg Mesh & Model Customizer (R6 Wide Layout - Overwrite Preset Auto-Update Engine)
 repeat task.wait() until game:IsLoaded()
 
 local Players = game:GetService("Players")
@@ -8,7 +8,7 @@ local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 repeat task.wait() until player:FindFirstChild("PlayerGui")
 
-local FOLDER_NAME = "LegCustomizer_Presets"
+local FOLDER_NAME = "LowerBodyCustomizer_Presets"
 local HAS_FILESYSTEM = (makefolder ~= nil) and (writefile ~= nil) and (readfile ~= nil) and (listfiles ~= nil)
 
 if HAS_FILESYSTEM then
@@ -265,9 +265,7 @@ toggleBtn.Size = UDim2.new(0, 110, 0, 40)
 toggleBtn.Position = UDim2.new(0, 10, 0, 10)
 toggleBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
--- Configured button to render markup formatting for the text label string safely
-toggleBtn.RichText = true
-toggleBtn.Text = "Toggle Menu<sup>Leg</sup>"
+toggleBtn.Text = "Toggle Menu"
 toggleBtn.Font = Enum.Font.SourceSansBold
 toggleBtn.TextSize = 16
 toggleBtn.Parent = sgui
@@ -322,7 +320,7 @@ local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 30)
 title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Text = "Sub-Part Leg Model Customizer Engine (Shared Presets)"
+title.Text = "Sub-Part Leg Model Customizer Engine"
 title.Font = Enum.Font.SourceSansBold
 title.TextSize = 15
 title.Parent = frame
@@ -483,6 +481,7 @@ idBox.FocusLost:Connect(function()
 	end
 end)
 
+-- Shift target configurations natively to R6 Legs mapping bounds
 local targets = {"Left Leg", "Right Leg"}
 local targetButtons = {}
 
@@ -841,4 +840,3 @@ end)
 if player.Character then
 	task.spawn(applyAllAccessories)
 end
-
