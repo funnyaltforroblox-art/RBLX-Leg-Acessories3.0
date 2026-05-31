@@ -1,4 +1,4 @@
--- Lower Body/Leg Mesh & Model Customizer (R6 Wide Layout - Legacy Target Part Fix)
+-- Lower Body/Leg Mesh & Model Customizer (R6 Wide Layout - TargetLeg Variable Fix)
 repeat task.wait() until game:IsLoaded()
 
 local Players = game:GetService("Players")
@@ -47,7 +47,6 @@ local function applyAllAccessories()
 	clearPhysicalAccessories()
 	
 	for index, data in ipairs(accessoryList) do
-		-- Safety Fallback: Ensure there is ALWAYS a valid target limb assigned
 		local targetLimbName = data.targetPart
 		if not targetLimbName or (targetLimbName ~= "Left Leg" and targetLimbName ~= "Right Leg") then
 			targetLimbName = "Left Leg"
@@ -315,6 +314,7 @@ for idx, limbName in ipairs(targets) do
 		if accessoryList[selectedIndex] then
 			accessoryList[selectedIndex].targetPart = limbName
 			updateEditUI()
+			updateSlotUI()
 		end
 	end)
 	targetButtons[limbName] = btn
@@ -514,10 +514,10 @@ updatePresetUI = function()
 					local tableSuccess, decoded = pcall(function() return HttpService:JSONDecode(content) end)
 					if tableSuccess and type(decoded) == "table" then
 						
-						-- Translation Translation Engine with Target Limb Auto-Detection Fix
+						-- Translation Engine mapping old structures and targetLeg naming rules safely
 						for slotIdx, config in ipairs(decoded) do
 							if type(config) == "table" then
-								-- Build granular translation if it originally used sub-part formatting structures
+								-- Handle legacy partsData formats
 								if config.partsData then
 									local hData = config.partsData["Handle"]
 									if hData then
@@ -534,7 +534,11 @@ updatePresetUI = function()
 									config.partsData = nil
 								end
 
-								-- Auto-correction protection layer for lost target strings
+								-- Map historical targetLeg variables directly over to modern targetPart strings
+								if config.targetLeg and not config.targetPart then
+									config.targetPart = config.targetLeg
+								end
+
 								if not config.targetPart or (config.targetPart ~= "Left Leg" and config.targetPart ~= "Right Leg") then
 									config.targetPart = "Left Leg"
 								end
