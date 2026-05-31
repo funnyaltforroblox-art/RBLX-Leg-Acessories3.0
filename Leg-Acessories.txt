@@ -1,3 +1,5 @@
+-- Delta Scripts Folder Compatible Version
+-- Re-arranged Horizontally for Wide/Mobile Screens
 repeat task.wait() until game:IsLoaded()
 
 local Players = game:GetService("Players")
@@ -100,9 +102,10 @@ toggleBtn.Font = Enum.Font.SourceSansBold
 toggleBtn.TextSize = 16
 toggleBtn.Parent = sgui
 
+-- Re-architected frame to stretch horizontally (Wide Layout)
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 340, 0, 520)
-frame.Position = UDim2.new(0.5, -170, 0.5, -260)
+frame.Size = UDim2.new(0, 520, 0, 240)
+frame.Position = UDim2.new(0.5, -260, 0.5, -120)
 frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 frame.BorderSizePixel = 2
 frame.Visible = true
@@ -112,26 +115,27 @@ toggleBtn.MouseButton1Click:Connect(function()
 	frame.Visible = not frame.Visible
 end)
 
-local function createInputRow(labelName, defaultVal, yPos, callback)
+-- Multi-column input row generator to allow grid alignment
+local function createGridInput(labelName, defaultVal, xPos, yPos, callback)
 	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(0, 140, 0, 25)
-	label.Position = UDim2.new(0, 10, 0, yPos)
+	label.Size = UDim2.new(0, 80, 0, 25)
+	label.Position = UDim2.new(0, xPos, 0, yPos)
 	label.BackgroundTransparency = 1
 	label.TextColor3 = Color3.fromRGB(200, 200, 200)
 	label.Text = labelName
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.Font = Enum.Font.SourceSans
-	label.TextSize = 16
+	label.TextSize = 14
 	label.Parent = frame
 
 	local box = Instance.new("TextBox")
-	box.Size = UDim2.new(0, 160, 0, 25)
-	box.Position = UDim2.new(0, 160, 0, yPos)
+	box.Size = UDim2.new(0, 65, 0, 25)
+	box.Position = UDim2.new(0, xPos + 85, 0, yPos)
 	box.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 	box.TextColor3 = Color3.fromRGB(255, 255, 255)
 	box.Text = tostring(defaultVal)
 	box.Font = Enum.Font.SourceSans
-	box.TextSize = 16
+	box.TextSize = 14
 	box.Parent = frame
 
 	box.FocusLost:Connect(function()
@@ -143,39 +147,63 @@ local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 30)
 title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Text = "Leg Accessory Customizer (R6)"
+title.Text = "Leg Accessory Customizer (R6 Layout)"
 title.Font = Enum.Font.SourceSansBold
-title.TextSize = 18
+title.TextSize = 16
 title.Parent = frame
 
-createInputRow("Accessory ID:", currentID, 45, function(val) currentID = tonumber(val) or currentID end)
-createInputRow("Offset X (L/R):", offsetX, 85, function(val) offsetX = tonumber(val) or offsetX end)
-createInputRow("Offset Y (Up/Dn):", offsetY, 115, function(val) offsetY = tonumber(val) or offsetY end)
-createInputRow("Offset Z (Fwd/Bkd):", offsetZ, 145, function(val) offsetZ = tonumber(val) or offsetZ end)
+-- Row 1: Asset ID (Stretched across top)
+local idLabel = Instance.new("TextLabel")
+idLabel.Size = UDim2.new(0, 100, 0, 25)
+idLabel.Position = UDim2.new(0, 10, 0, 45)
+idLabel.BackgroundTransparency = 1
+idLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+idLabel.Text = "Accessory ID:"
+idLabel.TextXAlignment = Enum.TextXAlignment.Left
+idLabel.Font = Enum.Font.SourceSansBold
+idLabel.Parent = frame
 
-createInputRow("Rotate X (Tilt):", rotateX, 185, function(val) rotateX = tonumber(val) or rotateX end)
-createInputRow("Rotate Y (Spin):", rotateY, 215, function(val) rotateY = tonumber(val) or rotateY end)
-createInputRow("Rotate Z (Side):", rotateZ, 245, function(val) rotateZ = tonumber(val) or rotateZ end)
+local idBox = Instance.new("TextBox")
+idBox.Size = UDim2.new(0, 390, 0, 25)
+idBox.Position = UDim2.new(0, 120, 0, 45)
+idBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+idBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+idBox.Text = tostring(currentID)
+idBox.Font = Enum.Font.SourceSans
+idBox.Parent = frame
+idBox.FocusLost:Connect(function() currentID = tonumber(idBox.Text) or currentID end)
 
-createInputRow("Scale X (Width):", scaleX, 285, function(val) scaleX = tonumber(val) or scaleX end)
-createInputRow("Scale Y (Height):", scaleY, 315, function(val) scaleY = tonumber(val) or scaleY end)
-createInputRow("Scale Z (Depth):", scaleZ, 345, function(val) scaleZ = tonumber(val) or scaleZ end)
+-- Column 1: Offsets (Left side grid)
+createGridInput("Offset X:", offsetX, 10, 85, function(val) offsetX = tonumber(val) or offsetX end)
+createGridInput("Offset Y:", offsetY, 10, 115, function(val) offsetY = tonumber(val) or offsetY end)
+createGridInput("Offset Z:", offsetZ, 10, 145, function(val) offsetZ = tonumber(val) or offsetZ end)
 
+-- Column 2: Rotations (Middle grid)
+createGridInput("Rotate X:", rotateX, 180, 85, function(val) rotateX = tonumber(val) or rotateX end)
+createGridInput("Rotate Y:", rotateY, 180, 115, function(val) rotateY = tonumber(val) or rotateY end)
+createGridInput("Rotate Z:", rotateZ, 180, 145, function(val) rotateZ = tonumber(val) or rotateZ end)
+
+-- Column 3: Scaling (Right grid)
+createGridInput("Scale X:", scaleX, 350, 85, function(val) scaleX = tonumber(val) or scaleX end)
+createGridInput("Scale Y:", scaleY, 350, 115, function(val) scaleY = tonumber(val) or scaleY end)
+createGridInput("Scale Z:", scaleZ, 350, 145, function(val) scaleZ = tonumber(val) or scaleZ end)
+
+-- Bottom Row Actions: Target Selections & Apply
 local leftLegBtn = Instance.new("TextButton")
-leftLegBtn.Size = UDim2.new(0, 150, 0, 30)
-leftLegBtn.Position = UDim2.new(0, 10, 0, 390)
+leftLegBtn.Size = UDim2.new(0, 120, 0, 35)
+leftLegBtn.Position = UDim2.new(0, 10, 0, 190)
 leftLegBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
 leftLegBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-leftLegBtn.Text = "Target: Left Leg"
+leftLegBtn.Text = "Left Leg"
 leftLegBtn.Font = Enum.Font.SourceSansBold
 leftLegBtn.Parent = frame
 
 local rightLegBtn = Instance.new("TextButton")
-rightLegBtn.Size = UDim2.new(0, 150, 0, 30)
-rightLegBtn.Position = UDim2.new(0, 180, 0, 390)
+rightLegBtn.Size = UDim2.new(0, 120, 0, 35)
+rightLegBtn.Position = UDim2.new(0, 140, 0, 190)
 rightLegBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 rightLegBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-rightLegBtn.Text = "Target: Right Leg"
+rightLegBtn.Text = "Right Leg"
 rightLegBtn.Font = Enum.Font.SourceSansBold
 rightLegBtn.Parent = frame
 
@@ -192,13 +220,13 @@ rightLegBtn.MouseButton1Click:Connect(function()
 end)
 
 local applyBtn = Instance.new("TextButton")
-applyBtn.Size = UDim2.new(0, 320, 0, 40)
-applyBtn.Position = UDim2.new(0, 10, 0, 440)
+applyBtn.Size = UDim2.new(0, 235, 0, 35)
+applyBtn.Position = UDim2.new(0, 275, 0, 190)
 applyBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
 applyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 applyBtn.Text = "APPLY / REFRESH"
 applyBtn.Font = Enum.Font.SourceSansBold
-applyBtn.TextSize = 20
+applyBtn.TextSize = 16
 applyBtn.Parent = frame
 
 applyBtn.MouseButton1Click:Connect(function()
