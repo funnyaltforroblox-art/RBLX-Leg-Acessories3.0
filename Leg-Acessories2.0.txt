@@ -1,4 +1,4 @@
--- Lower Body/Leg Mesh & Model Customizer (R6 Wide Layout - Preset Array Overwrite Fix)
+-- Lower Body/Leg Mesh & Model Customizer (R6 Wide Layout - 15-Digit Precision String Engine)
 repeat task.wait() until game:IsLoaded()
 
 local Players = game:GetService("Players")
@@ -17,7 +17,7 @@ end)
 
 local accessoryList = {
 	{
-		id = 17121838966, 
+		id = "17121838966", -- Stored as string to preserve 15+ digit precision
 		targetPart = "Left Leg", 
 		offsetX = 0, offsetY = 0, offsetZ = 0, 
 		rotateX = 0, rotateY = 0, rotateZ = 0, 
@@ -25,6 +25,7 @@ local accessoryList = {
 	}
 }
 local selectedIndex = 1
+local applyBtn 
 
 local function clearPhysicalAccessories()
 	local character = player.Character
@@ -55,11 +56,27 @@ local function applyAllAccessories()
 
 		local limb = character:FindFirstChild(targetLimbName)
 		if limb then
+			-- Enforce strict string formatting to prevent 64-bit float degradation on 15-digit IDs
+			local cleanIDStr = string.match(tostring(data.id), "^%d+") or "17121838966"
+			
 			local success, assetModel = pcall(function()
-				return game:GetObjects("rbxassetid://" .. data.id)[1]
+				return game:GetObjects("rbxassetid://" .. cleanIDStr)[1]
 			end)
 			
-			if success and assetModel then
+			if not success or not assetModel then
+				warn("Leg Customizer Precision Error: Failed to load 15-Digit ID [" .. cleanIDStr .. "] in Slot " .. tostring(index))
+				if applyBtn then
+					applyBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+					applyBtn.Text = "ERR: SLOT " .. tostring(index) .. " FETCH"
+					task.delay(2.5, function()
+						applyBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
+						applyBtn.Text = "APPLY ALL"
+					end)
+				end
+				continue
+			end
+			
+			if assetModel then
 				local wrapperModel = assetModel
 				if not assetModel:IsA("Model") then
 					wrapperModel = Instance.new("Model")
@@ -286,9 +303,9 @@ idBox.Parent = editPanel
 
 idBox.FocusLost:Connect(function()
 	if accessoryList[selectedIndex] then
-		local incomingID = tonumber(idBox.Text)
-		if incomingID and incomingID ~= accessoryList[selectedIndex].id then
-			accessoryList[selectedIndex].id = incomingID
+		local cleanInput = string.match(idBox.Text, "%d+")
+		if cleanInput and cleanInput ~= tostring(accessoryList[selectedIndex].id) then
+			accessoryList[selectedIndex].id = cleanInput
 			updateEditUI()
 		end
 	end
@@ -320,7 +337,7 @@ for idx, limbName in ipairs(targets) do
 	targetButtons[limbName] = btn
 end
 
-local applyBtn = Instance.new("TextButton")
+applyBtn = Instance.new("TextButton")
 applyBtn.Size = UDim2.new(0, 150, 0, 32)
 applyBtn.Position = UDim2.new(0, 165, 0, 205)
 applyBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
@@ -410,7 +427,7 @@ updateSlotUI = function()
 	addBtn.Parent = slotPanel
 	addBtn.MouseButton1Click:Connect(function()
 		table.insert(accessoryList, {
-			id = 17121838966, 
+			id = "17121838966", 
 			targetPart = "Left Leg", 
 			offsetX = 0, offsetY = 0, offsetZ = 0, rotateX = 0, rotateY = 0, rotateZ = 0, scaleX = 1, scaleY = 1, scaleZ = 1
 		})
@@ -511,15 +528,17 @@ updatePresetUI = function()
 				if not readfile then return end
 				local dataSuccess, content = pcall(function() return readfile(path) end)
 				if dataSuccess then
-					local tableSuccess, decoded = pcall(function() return HttpService:JSONDecode(content) end)
+					-- Pre-process raw JSON text stream to anchor massive IDs as string values before standard JSON decoding alters precision numbers
+					local protectedContent = string.gsub(content, '"id"%s*:%s*(%d+)', '"id":"%1"')
+					
+					local tableSuccess, decoded = pcall(function() return HttpService:JSONDecode(protectedContent) end)
 					if tableSuccess and type(decoded) == "table" then
-						
 						local freshList = {}
 						
 						for slotIdx, config in ipairs(decoded) do
 							if type(config) == "table" then
 								local baseConfig = {
-									id = tonumber(config.id) or 17121838966,
+									id = tostring(config.id or "17121838966"),
 									offsetX = tonumber(config.offsetX) or 0,
 									offsetY = tonumber(config.offsetY) or 0,
 									offsetZ = tonumber(config.offsetZ) or 0,
@@ -532,7 +551,6 @@ updatePresetUI = function()
 									targetPart = "Left Leg"
 								}
 								
-								-- Parse messy partsData formats if they exist inside old configuration tables
 								if config.partsData and config.partsData["Handle"] then
 									local hData = config.partsData["Handle"]
 									baseConfig.offsetX = tonumber(hData.offsetX) or baseConfig.offsetX
@@ -546,7 +564,6 @@ updatePresetUI = function()
 									baseConfig.scaleZ = tonumber(hData.scaleZ) or baseConfig.scaleZ
 								end
 
-								-- Map historical targetLeg variables directly over to modern targetPart strings
 								local rawLimb = config.targetPart or config.targetLeg
 								if rawLimb == "Left Leg" or rawLimb == "Right Leg" then
 									baseConfig.targetPart = rawLimb
@@ -556,7 +573,6 @@ updatePresetUI = function()
 							end
 						end
 						
-						-- Force engine overwrite cleanly without placeholder pollution
 						if #freshList > 0 then
 							accessoryList = freshList
 							selectedIndex = 1
