@@ -1,4 +1,4 @@
--- Lower Body/Leg Mesh & Model Customizer (R6 Wide Layout - TargetLeg Variable Fix)
+-- Lower Body/Leg Mesh & Model Customizer (R6 Wide Layout - Preset Array Overwrite Fix)
 repeat task.wait() until game:IsLoaded()
 
 local Players = game:GetService("Players")
@@ -514,42 +514,56 @@ updatePresetUI = function()
 					local tableSuccess, decoded = pcall(function() return HttpService:JSONDecode(content) end)
 					if tableSuccess and type(decoded) == "table" then
 						
-						-- Translation Engine mapping old structures and targetLeg naming rules safely
+						local freshList = {}
+						
 						for slotIdx, config in ipairs(decoded) do
 							if type(config) == "table" then
-								-- Handle legacy partsData formats
-								if config.partsData then
+								local baseConfig = {
+									id = tonumber(config.id) or 17121838966,
+									offsetX = tonumber(config.offsetX) or 0,
+									offsetY = tonumber(config.offsetY) or 0,
+									offsetZ = tonumber(config.offsetZ) or 0,
+									rotateX = tonumber(config.rotateX) or 0,
+									rotateY = tonumber(config.rotateY) or 0,
+									rotateZ = tonumber(config.rotateZ) or 0,
+									scaleX = tonumber(config.scaleX) or 1,
+									scaleY = tonumber(config.scaleY) or 1,
+									scaleZ = tonumber(config.scaleZ) or 1,
+									targetPart = "Left Leg"
+								}
+								
+								-- Parse messy partsData formats if they exist inside old configuration tables
+								if config.partsData and config.partsData["Handle"] then
 									local hData = config.partsData["Handle"]
-									if hData then
-										config.offsetX = hData.offsetX or config.offsetX or 0
-										config.offsetY = hData.offsetY or config.offsetY or 0
-										config.offsetZ = hData.offsetZ or config.offsetZ or 0
-										config.rotateX = hData.rotateX or config.rotateX or 0
-										config.rotateY = hData.rotateY or config.rotateY or 0
-										config.rotateZ = hData.rotateZ or config.rotateZ or 0
-										config.scaleX = hData.scaleX or config.scaleX or 1
-										config.scaleY = hData.scaleY or config.scaleY or 1
-										config.scaleZ = hData.scaleZ or config.scaleZ or 1
-									end
-									config.partsData = nil
+									baseConfig.offsetX = tonumber(hData.offsetX) or baseConfig.offsetX
+									baseConfig.offsetY = tonumber(hData.offsetY) or baseConfig.offsetY
+									baseConfig.offsetZ = tonumber(hData.offsetZ) or baseConfig.offsetZ
+									baseConfig.rotateX = tonumber(hData.rotateX) or baseConfig.rotateX
+									baseConfig.rotateY = tonumber(hData.rotateY) or baseConfig.rotateY
+									baseConfig.rotateZ = tonumber(hData.rotateZ) or baseConfig.rotateZ
+									baseConfig.scaleX = tonumber(hData.scaleX) or baseConfig.scaleX
+									baseConfig.scaleY = tonumber(hData.scaleY) or baseConfig.scaleY
+									baseConfig.scaleZ = tonumber(hData.scaleZ) or baseConfig.scaleZ
 								end
 
 								-- Map historical targetLeg variables directly over to modern targetPart strings
-								if config.targetLeg and not config.targetPart then
-									config.targetPart = config.targetLeg
+								local rawLimb = config.targetPart or config.targetLeg
+								if rawLimb == "Left Leg" or rawLimb == "Right Leg" then
+									baseConfig.targetPart = rawLimb
 								end
-
-								if not config.targetPart or (config.targetPart ~= "Left Leg" and config.targetPart ~= "Right Leg") then
-									config.targetPart = "Left Leg"
-								end
+								
+								table.insert(freshList, baseConfig)
 							end
 						end
 						
-						accessoryList = decoded
-						selectedIndex = 1
-						updateSlotUI()
-						updateEditUI()
-						applyAllAccessories()
+						-- Force engine overwrite cleanly without placeholder pollution
+						if #freshList > 0 then
+							accessoryList = freshList
+							selectedIndex = 1
+							updateSlotUI()
+							updateEditUI()
+							applyAllAccessories()
+						end
 					end
 				end
 			end)
