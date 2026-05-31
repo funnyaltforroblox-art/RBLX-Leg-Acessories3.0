@@ -8,7 +8,7 @@ local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 repeat task.wait() until player:FindFirstChild("PlayerGui")
 
-local FOLDER_NAME = "UpperBodyCustomizer_Presets"
+local FOLDER_NAME = "LegCustomizer_Presets"
 local HAS_FILESYSTEM = (makefolder ~= nil) and (writefile ~= nil) and (readfile ~= nil) and (listfiles ~= nil)
 
 if HAS_FILESYSTEM then
