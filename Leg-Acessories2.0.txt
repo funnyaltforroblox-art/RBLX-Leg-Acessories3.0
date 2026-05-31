@@ -9,12 +9,12 @@ repeat task.wait() until player:FindFirstChild("PlayerGui")
 
 local FOLDER_NAME = "LowerBodyCustomizer_Presets"
 
--- Bypassed environment checking to completely prevent line 1 nil errors
-local HAS_FILESYSTEM = (makefolder ~= nil) and (writefile ~= nil) and (readfile ~= nil) and (listfiles ~= nil)
-
-if HAS_FILESYSTEM then
-	pcall(function() makefolder(FOLDER_NAME) end)
-end
+-- Wrap filesystem initialization securely to prevent sandbox panics
+pcall(function()
+	if makefolder then
+		makefolder(FOLDER_NAME)
+	end
+end)
 
 local accessoryList = {
 	{
@@ -31,7 +31,7 @@ local currentHighlightBox = nil
 
 local function clearActiveHighlight()
 	if currentHighlightBox then
-		currentHighlightBox:Destroy()
+		pcall(function() currentHighlightBox:Destroy() end)
 		currentHighlightBox = nil
 	end
 end
@@ -116,7 +116,7 @@ local function scanAssetAndPopulateData(slotIndex)
 				end
 			end
 		end
-		assetModel:Destroy()
+		pcall(function() assetModel:Destroy() end)
 	end
 end
 
@@ -126,7 +126,7 @@ local function clearPhysicalAccessories()
 	if character then
 		for _, child in ipairs(character:GetChildren()) do
 			if child:IsA("Accessory") and string.sub(child.Name, 1, 10) == "CustomLeg_" then
-				child:Destroy()
+				pcall(function() child:Destroy() end)
 			end
 		end
 	end
@@ -191,7 +191,7 @@ local function applyAllAccessories()
 								end
 							end
 						elseif obj:IsA("Weld") or obj:IsA("ManualWeld") or obj:IsA("WeldConstraint") or obj:IsA("Attachment") then
-							obj:Destroy()
+							pcall(function() obj:Destroy() end)
 						end
 					end
 					
@@ -220,7 +220,7 @@ local function applyAllAccessories()
 								obj.Parent = accessory
 							end
 						end
-						assetModel:Destroy()
+						pcall(function() assetModel:Destroy() end)
 					else
 						handle.Parent = accessory
 					end
@@ -656,14 +656,20 @@ saveBtn.Parent = savePanel
 
 saveBtn.MouseButton1Click:Connect(function()
 	local name = presetNameBox.Text
-	if name ~= "" and name ~= "PresetName" and name ~= "Saved!" and name ~= "Updated!" and HAS_FILESYSTEM then
+	if name ~= "" and name ~= "PresetName" and name ~= "Saved!" and name ~= "Updated!" then
 		local targetFilePath = FOLDER_NAME .. "/" .. name .. ".txt"
-		local fileExists = pcall(function() return readfile(targetFilePath) end)
+		
+		-- Use pcall inside workspace execution logic to dodge sandbox checks completely
+		local fileExists = false
+		if readfile then
+			pcall(function() fileExists = readfile(targetFilePath) ~= nil end)
+		end
 		
 		local json = HttpService:JSONEncode(accessoryList)
-		local success = pcall(function()
-			writefile(targetFilePath, json)
-		end)
+		local success = false
+		if writefile then
+			success = pcall(function() writefile(targetFilePath, json) end)
+		end
 		
 		if success then
 			if fileExists then
@@ -674,6 +680,10 @@ saveBtn.MouseButton1Click:Connect(function()
 			task.wait(1)
 			presetNameBox.Text = "PresetName"
 			updatePresetUI()
+		else
+			presetNameBox.Text = "No HW Save"
+			task.wait(1)
+			presetNameBox.Text = "PresetName"
 		end
 	else
 		presetNameBox.Text = "Invalid Name"
@@ -684,13 +694,15 @@ end)
 
 updatePresetUI = function()
 	presetPanel:ClearAllChildren()
-	if not HAS_FILESYSTEM then return end
 	
 	local pLayout = Instance.new("UIListLayout")
 	pLayout.Padding = UDim.new(0, 4)
 	pLayout.Parent = presetPanel
 	
-	local success, files = pcall(function() return listfiles(FOLDER_NAME) end)
+	if not listfiles then return end
+	
+	local success, files
+	success = pcall(function() files = listfiles(FOLDER_NAME) end)
 	if not success or not files then return end
 	
 	for _, path in ipairs(files) do
@@ -710,6 +722,7 @@ updatePresetUI = function()
 			loadBtn.Parent = pFrame
 			
 			loadBtn.MouseButton1Click:Connect(function()
+				if not readfile then return end
 				local dataSuccess, content = pcall(function() return readfile(path) end)
 				if dataSuccess then
 					local tableSuccess, decoded = pcall(function() return HttpService:JSONDecode(content) end)
