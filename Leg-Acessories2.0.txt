@@ -1,4 +1,4 @@
--- Sub-Part Leg Model Customizer Engine (R6 Wide Layout - Precision Patched Folder Target)
+-- Lower Body/Leg Mesh & Model Customizer (R6 Wide Layout - Overwrite Preset Auto-Update Engine)
 repeat task.wait() until game:IsLoaded()
 
 local Players = game:GetService("Players")
@@ -8,8 +8,7 @@ local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 repeat task.wait() until player:FindFirstChild("PlayerGui")
 
--- Updated folder destination targets matching your system path
-local FOLDER_NAME = "LegCustomizer_Presets"
+local FOLDER_NAME = "LowerBodyCustomizer_Presets"
 local HAS_FILESYSTEM = (makefolder ~= nil) and (writefile ~= nil) and (readfile ~= nil) and (listfiles ~= nil)
 
 if HAS_FILESYSTEM then
@@ -78,9 +77,8 @@ local function scanAssetAndPopulateData(slotIndex)
 	local data = accessoryList[slotIndex]
 	if not data or not data.id then return end
 	
-	local cleanIDStr = string.match(tostring(data.id), "^%d+") or "17121838966"
 	local success, assetModel = pcall(function()
-		return game:GetObjects("rbxassetid://" .. cleanIDStr)[1]
+		return game:GetObjects("rbxassetid://" .. data.id)[1]
 	end)
 	
 	if success and assetModel then
@@ -154,9 +152,8 @@ local function applyAllAccessories()
 	for index, data in ipairs(accessoryList) do
 		local limb = character:FindFirstChild(data.targetPart)
 		if limb then
-			local cleanIDStr = string.match(tostring(data.id), "^%d+") or "17121838966"
 			local success, assetModel = pcall(function()
-				return game:GetObjects("rbxassetid://" .. cleanIDStr)[1]
+				return game:GetObjects("rbxassetid://" .. data.id)[1]
 			end)
 			
 			if success and assetModel then
@@ -474,9 +471,9 @@ idBox.Parent = editPanel
 
 idBox.FocusLost:Connect(function()
 	if accessoryList[selectedIndex] then
-		local cleanInput = string.match(idBox.Text, "%d+")
-		if cleanInput and cleanInput ~= tostring(accessoryList[selectedIndex].id) then
-			accessoryList[selectedIndex].id = cleanInput
+		local incomingID = tonumber(idBox.Text)
+		if incomingID and incomingID ~= accessoryList[selectedIndex].id then
+			accessoryList[selectedIndex].id = incomingID
 			scanAssetAndPopulateData(selectedIndex)
 			selectedSubPartName = "Handle"
 			updateEditUI()
@@ -484,6 +481,7 @@ idBox.FocusLost:Connect(function()
 	end
 end)
 
+-- Shift target configurations natively to R6 Legs mapping bounds
 local targets = {"Left Leg", "Right Leg"}
 local targetButtons = {}
 
@@ -718,7 +716,7 @@ updateSlotUI = function()
 	addBtn.Parent = slotPanel
 	addBtn.MouseButton1Click:Connect(function()
 		table.insert(accessoryList, {
-			id = "17121838966", 
+			id = 17121838966, 
 			targetPart = "Left Leg", 
 			partsData = { ["Handle"] = {offsetX = 0, offsetY = 0, offsetZ = 0, rotateX = 0, rotateY = 0, rotateZ = 0, scaleX = 1, scaleY = 1, scaleZ = 1} }
 		})
@@ -814,10 +812,7 @@ updatePresetUI = function()
 			loadBtn.MouseButton1Click:Connect(function()
 				local dataSuccess, content = pcall(function() return readfile(path) end)
 				if dataSuccess then
-					-- Keeps large 15-digit values wrapped as strings prior to passing into the standard JSON decoder
-					local protectedContent = string.gsub(content, '"id"%s*:%s*(%d+)', '"id":"%1"')
-					
-					local tableSuccess, decoded = pcall(function() return HttpService:JSONDecode(protectedContent) end)
+					local tableSuccess, decoded = pcall(function() return HttpService:JSONDecode(content) end)
 					if tableSuccess and type(decoded) == "table" then
 						accessoryList = decoded
 						selectedIndex = 1
