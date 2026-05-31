@@ -1,4 +1,4 @@
--- Lower Body/Leg Mesh & Model Customizer (R6 Wide Layout)
+-- Lower Body/Leg Mesh & Model Customizer (R6 Wide Layout - Fixed Asset Welder)
 repeat task.wait() until game:IsLoaded()
 
 local Players = game:GetService("Players")
@@ -9,7 +9,6 @@ repeat task.wait() until player:FindFirstChild("PlayerGui")
 
 local FOLDER_NAME = "LegCustomizer_Presets"
 
--- Secure directory checking
 pcall(function()
 	if makefolder then
 		makefolder(FOLDER_NAME)
@@ -31,7 +30,7 @@ local function clearPhysicalAccessories()
 	local character = player.Character
 	if character then
 		for _, child in ipairs(character:GetChildren()) do
-			if child:IsA("Accessory") and string.sub(child.Name, 1, 10) == "CustomLeg_" then
+			if child:IsA("Accessory") and (string.sub(child.Name, 1, 10) == "CustomLeg_" or child:GetAttribute("CustomLeg")) then
 				pcall(function() child:Destroy() end)
 			end
 		end
@@ -55,77 +54,76 @@ local function applyAllAccessories()
 			end)
 			
 			if success and assetModel then
-				-- Find core handle or fallback primary component
-				local handle = assetModel:FindFirstChild("Handle") or assetModel:FindFirstChildWhichIsA("Part", true) or assetModel:FindFirstChildWhichIsA("MeshPart", true)
-				if not handle and assetModel:IsA("Model") and assetModel.PrimaryPart then
-					handle = assetModel.PrimaryPart
+				-- Normalize structure to ensure it's a Model container for safe scaling
+				local wrapperModel = assetModel
+				if not assetModel:IsA("Model") then
+					wrapperModel = Instance.new("Model")
+					assetModel.Parent = wrapperModel
 				end
-				
-				if handle then
-					handle.Name = "Handle"
-					
-					local structuralOffsets = {}
-					
-					-- Map physical parts structure relative to primary handle
-					for _, obj in ipairs(assetModel:GetDescendants()) do
-						if obj:IsA("BasePart") and obj ~= handle then
-							structuralOffsets[obj] = handle.CFrame:ToObjectSpace(obj.CFrame)
-						end
-					end
 
-					-- Globally scale elements uniform to preset instructions
-					for _, obj in ipairs(assetModel:GetDescendants()) do
-						if obj:IsA("BasePart") then
-							obj.Anchored = false
-							obj.CanCollide = false
-							obj.Massless = true
-							
-							local mesh = obj:FindFirstChildWhichIsA("SpecialMesh")
-							if mesh then
-								mesh.Scale = Vector3.new(mesh.Scale.X * data.scaleX, mesh.Scale.Y * data.scaleY, mesh.Scale.Z * data.scaleZ)
-							else
-								obj.Size = Vector3.new(obj.Size.X * data.scaleX, obj.Size.Y * data.scaleY, obj.Size.Z * data.scaleZ)
-							end
-						elseif obj:IsA("Weld") or obj:IsA("ManualWeld") or obj:IsA("WeldConstraint") or obj:IsA("Attachment") then
-							pcall(function() obj:Destroy() end)
-						end
+				-- Locate or establish a reliable core handle piece
+				local handle = wrapperModel:FindFirstChild("Handle") or wrapperModel:FindFirstChildWhichIsA("BasePart", true)
+				if not handle then
+					pcall(function() wrapperModel:Destroy() end)
+					continue
+				end
+				handle.Name = "Handle"
+				wrapperModel.PrimaryPart = handle
+
+				-- Clean out restrictive constraints, anchors, and internal welds
+				for _, obj in ipairs(wrapperModel:GetDescendants()) do
+					if obj:IsA("BasePart") then
+						obj.Anchored = false
+						obj.CanCollide = false
+						obj.Massless = true
+					elseif obj:IsA("Weld") or obj:IsA("ManualWeld") or obj:IsA("WeldConstraint") or obj:IsA("Attachment") then
+						pcall(function() obj:Destroy() end)
 					end
-					
-					local accessory = Instance.new("Accessory")
-					accessory.Name = "CustomLeg_" .. tostring(index)
-					
-					if assetModel:IsA("Model") then
-						for obj, originalLocalCFrame in pairs(structuralOffsets) do
-							local innerWeld = Instance.new("Weld")
-							innerWeld.Name = "ModelInnerWeld"
-							innerWeld.Part0 = obj
-							innerWeld.Part1 = handle
-							
-							-- Maintain multi-part positioning transformed by global adjustments
-							local alteredPosition = originalLocalCFrame.Position * Vector3.new(data.scaleX, data.scaleY, data.scaleZ)
-							innerWeld.C0 = CFrame.new(alteredPosition) * originalLocalCFrame.Rotation
-							innerWeld.Parent = obj
-						end
-						for _, obj in ipairs(assetModel:GetChildren()) do
-							if obj:IsA("BasePart") or obj:IsA("Folder") or obj:IsA("Configuration") then
-								obj.Parent = accessory
-							end
-						end
-						pcall(function() assetModel:Destroy() end)
-					else
-						handle.Parent = accessory
+				end
+
+				-- Apply uniform structural model scale (averages scaling factors cleanly)
+				local targetScaleFactor = (data.scaleX + data.scaleY + data.scaleZ) / 3
+				if targetScaleFactor <= 0 then targetScaleFactor = 1 end
+				
+				pcall(function()
+					wrapperModel:Scale(targetScaleFactor)
+				end)
+
+				-- Securely anchor all interior parts to the main handle piece
+				for _, obj in ipairs(wrapperModel:GetDescendants()) do
+					if obj:IsA("BasePart") and obj ~= handle then
+						local innerWeld = Instance.new("WeldConstraint")
+						innerWeld.Name = "ModelInnerWeldConstraint"
+						innerWeld.Part0 = obj
+						innerWeld.Part1 = handle
+						innerWeld.Parent = obj
 					end
-					
+				end
+
+				-- Construct the accessory assembly and parent it to your character
+				local accessory = Instance.new("Accessory")
+				accessory.Name = "CustomLeg_" .. tostring(index)
+				accessory:SetAttribute("CustomLeg", true)
+				
+				-- Extract all functional parts into the accessory envelope
+				for _, child in ipairs(wrapperModel:GetChildren()) do
+					child.Parent = accessory
+				end
+				pcall(function() wrapperModel:Destroy() end)
+
+				-- Re-verify handle attachment availability
+				local customHandle = accessory:FindFirstChild("Handle")
+				if customHandle then
 					local weld = Instance.new("Weld")
 					weld.Name = "AccessoryWeld"
-					weld.Part0 = handle
+					weld.Part0 = customHandle
 					weld.Part1 = limb
 					
 					local positionOffset = CFrame.new(data.offsetX, data.offsetY, data.offsetZ)
 					local rotationOffset = CFrame.Angles(math.rad(data.rotateX), math.rad(data.rotateY), math.rad(data.rotateZ))
 					
 					weld.C0 = positionOffset * rotationOffset
-					weld.Parent = handle
+					weld.Parent = customHandle
 					
 					accessory.Parent = character
 				end
@@ -162,7 +160,6 @@ frame.BorderSizePixel = 2
 frame.Visible = true
 frame.Parent = sgui
 
--- Unified Input Drag Engine
 local dragging = false
 local dragInput, dragStart, startPos
 
@@ -259,7 +256,6 @@ local function createEditInput(labelName, property, x, y)
 	inputs[property] = box
 end
 
--- Layout properties positioning directly onto the full item data level
 createEditInput("Offset X:", "offsetX", 0, 45)
 createEditInput("Offset Y:", "offsetY", 0, 75)
 createEditInput("Offset Z:", "offsetZ", 0, 105)
@@ -517,7 +513,7 @@ updatePresetUI = function()
 					local tableSuccess, decoded = pcall(function() return HttpService:JSONDecode(content) end)
 					if tableSuccess and type(decoded) == "table" then
 						
-						-- Seamless Conversion Engine (Translates old complex multi-part objects down to single structures smoothly)
+						-- Backward Translation translation layer (Converts old granular partsData configs safely)
 						for slotIdx, config in ipairs(decoded) do
 							if type(config) == "table" and config.partsData then
 								local hData = config.partsData["Handle"]
@@ -560,3 +556,4 @@ end)
 if player.Character then
 	task.spawn(applyAllAccessories)
 end
+
