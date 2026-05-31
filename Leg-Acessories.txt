@@ -1,97 +1,103 @@
--- Delta Scripts Folder Compatible Version
--- Re-arranged Horizontally for Wide/Mobile Screens
+-- Leg Customizer Master System (Wide Layout Edition)
+-- Auto-Execute Compatible with Multi-Accessory & Preset Saves
 repeat task.wait() until game:IsLoaded()
 
 local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
 local player = Players.LocalPlayer
 repeat task.wait() until player:FindFirstChild("PlayerGui")
 
--- Global State Variables (Default values)
-local currentID = 17121838966
-local targetLeg = "Left Leg"
-local offsetX, offsetY, offsetZ = 0, 0, 0
-local rotateX, rotateY, rotateZ = 0, 0, 0
-local scaleX, scaleY, scaleZ = 1, 1, 1
+-- File Configuration Setup
+local FOLDER_NAME = "LegCustomizer_Presets"
+if makefolder then pcall(function() makefolder(FOLDER_NAME) end) end
 
-local activeAccessory = nil
+-- Global Core States
+local accessoryList = {
+	{id = 17121838966, targetLeg = "Left Leg", offsetX = 0, offsetY = 0, offsetZ = 0, rotateX = 0, rotateY = 0, rotateZ = 0, scaleX = 1, scaleY = 1, scaleZ = 1}
+}
+local selectedIndex = 1
 
--- Function to clean up old custom accessories
-local function removeExistingAccessory(character)
+-- Utility function to completely clean up physical objects
+local function clearPhysicalAccessories()
+	local character = player.Character
 	if character then
-		local old = character:FindFirstChild("CustomR6LegAccessory")
-		if old then old:Destroy() end
+		for _, child in ipairs(character:GetChildren()) do
+			if child:IsA("Accessory") and string.sub(child.Name, 1, 10) == "CustomLeg_" then
+				child:Destroy()
+			end
+		end
 	end
 end
 
--- Core Function to Build and Weld the Accessory
-local function applyAccessory()
+-- Render the physical objects onto the character model
+local function applyAllAccessories()
 	local character = player.Character
 	if not character then return end
 	
 	local humanoid = character:WaitForChild("Humanoid", 5)
 	if not humanoid or humanoid.RigType ~= Enum.HumanoidRigType.R6 then return end
 	
-	removeExistingAccessory(character)
+	clearPhysicalAccessories()
 	
-	local leg = character:FindFirstChild(targetLeg)
-	if not leg then return end
-	
-	local success, assetModel = pcall(function()
-		return game:GetObjects("rbxassetid://" .. currentID)[1]
-	end)
-	
-	if not success or not assetModel then return end
-	
-	local handle = assetModel:FindFirstChild("Handle") or assetModel:FindFirstChildWhichIsA("Part", true) or assetModel:FindFirstChildWhichIsA("MeshPart", true)
-	if not handle then return end
-	
-	handle.Anchored = false
-	for _, obj in ipairs(assetModel:GetDescendants()) do
-		if obj:IsA("BasePart") then
-			obj.Anchored = false
-			obj.CanCollide = false
-			obj.Massless = true
-		elseif obj:IsA("Weld") or obj:IsA("ManualWeld") or obj:IsA("WeldConstraint") or obj:IsA("Attachment") then
-			obj:Destroy()
-		elseif obj:IsA("SpecialMesh") then
-			obj.Scale = Vector3.new(scaleX, scaleY, scaleZ)
+	for index, data in ipairs(accessoryList) do
+		local leg = character:FindFirstChild(data.targetLeg)
+		if leg then
+			local success, assetModel = pcall(function()
+				return game:GetObjects("rbxassetid://" .. data.id)[1]
+			end)
+			
+			if success and assetModel then
+				local handle = assetModel:FindFirstChild("Handle") or assetModel:FindFirstChildWhichIsA("Part", true) or assetModel:FindFirstChildWhichIsA("MeshPart", true)
+				if handle then
+					handle.Anchored = false
+					for _, obj in ipairs(assetModel:GetDescendants()) do
+						if obj:IsA("BasePart") then
+							obj.Anchored = false
+							obj.CanCollide = false
+							obj.Massless = true
+						elseif obj:IsA("Weld") or obj:IsA("ManualWeld") or obj:IsA("WeldConstraint") or obj:IsA("Attachment") then
+							obj:Destroy()
+						elseif obj:IsA("SpecialMesh") then
+							obj.Scale = Vector3.new(data.scaleX, data.scaleY, data.scaleZ)
+						end
+					end
+					
+					handle.Name = "Handle"
+					handle.CanCollide = false
+					handle.Massless = true
+					
+					if handle:IsA("MeshPart") or not handle:FindFirstChildWhichIsA("SpecialMesh") then
+						handle.Size = Vector3.new(data.scaleX, data.scaleY, data.scaleZ)
+					end
+					
+					local accessory = Instance.new("Accessory")
+					accessory.Name = "CustomLeg_" .. tostring(index)
+					handle.Parent = accessory
+					
+					local weld = Instance.new("Weld")
+					weld.Name = "AccessoryWeld"
+					weld.Part0 = handle
+					weld.Part1 = leg
+					
+					local positionOffset = CFrame.new(data.offsetX, data.offsetY, data.offsetZ)
+					local rotationOffset = CFrame.Angles(math.rad(data.rotateX), math.rad(data.rotateY), math.rad(data.rotateZ))
+					
+					weld.C0 = positionOffset * rotationOffset
+					weld.Parent = handle
+					
+					accessory.Parent = character
+				end
+			end
 		end
 	end
-	
-	handle.Name = "Handle"
-	handle.CanCollide = false
-	handle.Massless = true
-	
-	if handle:IsA("MeshPart") or not handle:FindFirstChildWhichIsA("SpecialMesh") then
-		handle.Size = Vector3.new(scaleX, scaleY, scaleZ)
-	end
-	
-	local accessory = Instance.new("Accessory")
-	accessory.Name = "CustomR6LegAccessory"
-	handle.Parent = accessory
-	
-	local weld = Instance.new("Weld")
-	weld.Name = "AccessoryWeld"
-	weld.Part0 = handle
-	weld.Part1 = leg
-	
-	local positionOffset = CFrame.new(offsetX, offsetY, offsetZ)
-	local rotationOffset = CFrame.Angles(math.rad(rotateX), math.rad(rotateY), math.rad(rotateZ))
-	
-	weld.C0 = positionOffset * rotationOffset
-	weld.Parent = handle
-	
-	accessory.Parent = character
-	activeAccessory = accessory
 end
 
--- UI Construction
+-- UI Initialization
 local sgui = Instance.new("ScreenGui")
-sgui.Name = "LegAccessoryGUI"
+sgui.Name = "LegAccessoryMasterGUI"
 sgui.ResetOnSpawn = false
 sgui.Parent = player:WaitForChild("PlayerGui")
 
--- Toggle Button
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(0, 100, 0, 35)
 toggleBtn.Position = UDim2.new(0, 10, 0, 10)
@@ -102,142 +108,343 @@ toggleBtn.Font = Enum.Font.SourceSansBold
 toggleBtn.TextSize = 16
 toggleBtn.Parent = sgui
 
--- Re-architected frame to stretch horizontally (Wide Layout)
+-- Wide Interface Container (Expanded to 720px for 3 columns)
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 520, 0, 240)
-frame.Position = UDim2.new(0.5, -260, 0.5, -120)
+frame.Size = UDim2.new(0, 720, 0, 300)
+frame.Position = UDim2.new(0.5, -360, 0.5, -150)
 frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 frame.BorderSizePixel = 2
 frame.Visible = true
 frame.Parent = sgui
 
-toggleBtn.MouseButton1Click:Connect(function()
-	frame.Visible = not frame.Visible
-end)
-
--- Multi-column input row generator to allow grid alignment
-local function createGridInput(labelName, defaultVal, xPos, yPos, callback)
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(0, 80, 0, 25)
-	label.Position = UDim2.new(0, xPos, 0, yPos)
-	label.BackgroundTransparency = 1
-	label.TextColor3 = Color3.fromRGB(200, 200, 200)
-	label.Text = labelName
-	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.Font = Enum.Font.SourceSans
-	label.TextSize = 14
-	label.Parent = frame
-
-	local box = Instance.new("TextBox")
-	box.Size = UDim2.new(0, 65, 0, 25)
-	box.Position = UDim2.new(0, xPos + 85, 0, yPos)
-	box.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-	box.TextColor3 = Color3.fromRGB(255, 255, 255)
-	box.Text = tostring(defaultVal)
-	box.Font = Enum.Font.SourceSans
-	box.TextSize = 14
-	box.Parent = frame
-
-	box.FocusLost:Connect(function()
-		callback(box.Text)
-	end)
-end
+toggleBtn.MouseButton1Click:Connect(function() frame.Visible = not frame.Visible end)
 
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 30)
 title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Text = "Leg Accessory Customizer (R6 Layout)"
+title.Text = "Leg Accessory System (Multi-Slot & Presets)"
 title.Font = Enum.Font.SourceSansBold
 title.TextSize = 16
 title.Parent = frame
 
--- Row 1: Asset ID (Stretched across top)
+-- Define Content Layout Panels
+local slotPanel = Instance.new("ScrollingFrame") -- Column 1 (Left)
+slotPanel.Size = UDim2.new(0, 180, 0, 255)
+slotPanel.Position = UDim2.new(0, 10, 0, 35)
+slotPanel.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+slotPanel.CanvasSize = UDim2.new(0, 0, 2, 0)
+slotPanel.Parent = frame
+
+local editPanel = Instance.new("Frame") -- Column 2 (Middle)
+editPanel.Size = UDim2.new(0, 320, 0, 255)
+editPanel.Position = UDim2.new(0, 200, 0, 35)
+editPanel.BackgroundTransparency = 1
+editPanel.Parent = frame
+
+local presetPanel = Instance.new("ScrollingFrame") -- Column 3 (Right)
+presetPanel.Size = UDim2.new(0, 180, 0, 215)
+presetPanel.Position = UDim2.new(0, 530, 0, 35)
+presetPanel.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+presetPanel.CanvasSize = UDim2.new(0, 0, 2, 0)
+presetPanel.Parent = frame
+
+-- Forward references for interface rendering updates
+local updateSlotUI, updateEditUI, updatePresetUI
+
+-- Input Generator for Editor Grid (Retains Value fix)
+local inputs = {}
+local function createEditInput(labelName, property, x, y)
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(0, 75, 0, 22)
+	label.Position = UDim2.new(0, x, 0, y)
+	label.BackgroundTransparency = 1
+	label.TextColor3 = Color3.fromRGB(200, 200, 200)
+	label.Text = labelName
+	label.TextSize = 13
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = editPanel
+
+	local box = Instance.new("TextBox")
+	box.Size = UDim2.new(0, 65, 0, 22)
+	box.Position = UDim2.new(0, x + 80, 0, y)
+	box.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+	box.TextColor3 = Color3.fromRGB(255, 255, 255)
+	box.ClearTextOnFocus = false -- Minor fix requested: Stops automatic erasure
+	box.TextSize = 13
+	box.Parent = editPanel
+
+	box.FocusLost:Connect(function()
+		local data = accessoryList[selectedIndex]
+		if data then
+			data[property] = tonumber(box.Text) or data[property]
+			box.Text = tostring(data[property])
+		end
+	end)
+	inputs[property] = box
+end
+
+-- Build Column 2 Inputs
+createEditInput("Offset X:", "offsetX", 0, 45)
+createEditInput("Offset Y:", "offsetY", 0, 75)
+createEditInput("Offset Z:", "offsetZ", 0, 105)
+
+createEditInput("Rotate X:", "rotateX", 165, 45)
+createEditInput("Rotate Y:", "rotateY", 165, 75)
+createEditInput("Rotate Z:", "rotateZ", 165, 105)
+
+createEditInput("Scale X:", "scaleX", 0, 140)
+createEditInput("Scale Y:", "scaleY", 0, 170)
+createEditInput("Scale Z:", "scaleZ", 0, 200)
+
+-- Catalog Asset ID Input Configuration
 local idLabel = Instance.new("TextLabel")
-idLabel.Size = UDim2.new(0, 100, 0, 25)
-idLabel.Position = UDim2.new(0, 10, 0, 45)
+idLabel.Size = UDim2.new(0, 60, 0, 25)
+idLabel.Position = UDim2.new(0, 0, 0, 5)
 idLabel.BackgroundTransparency = 1
-idLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-idLabel.Text = "Accessory ID:"
-idLabel.TextXAlignment = Enum.TextXAlignment.Left
+idLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+idLabel.Text = "Asset ID:"
 idLabel.Font = Enum.Font.SourceSansBold
-idLabel.Parent = frame
+idLabel.TextXAlignment = Enum.TextXAlignment.Left
+idLabel.Parent = editPanel
 
 local idBox = Instance.new("TextBox")
-idBox.Size = UDim2.new(0, 390, 0, 25)
-idBox.Position = UDim2.new(0, 120, 0, 45)
-idBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+idBox.Size = UDim2.new(0, 250, 0, 25)
+idBox.Position = UDim2.new(0, 65, 0, 5)
+idBox.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 idBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-idBox.Text = tostring(currentID)
-idBox.Font = Enum.Font.SourceSans
-idBox.Parent = frame
-idBox.FocusLost:Connect(function() currentID = tonumber(idBox.Text) or currentID end)
+idBox.ClearTextOnFocus = false
+idBox.Parent = editPanel
+idBox.FocusLost:Connect(function()
+	if accessoryList[selectedIndex] then
+		accessoryList[selectedIndex].id = tonumber(idBox.Text) or accessoryList[selectedIndex].id
+	end
+end)
 
--- Column 1: Offsets (Left side grid)
-createGridInput("Offset X:", offsetX, 10, 85, function(val) offsetX = tonumber(val) or offsetX end)
-createGridInput("Offset Y:", offsetY, 10, 115, function(val) offsetY = tonumber(val) or offsetY end)
-createGridInput("Offset Z:", offsetZ, 10, 145, function(val) offsetZ = tonumber(val) or offsetZ end)
-
--- Column 2: Rotations (Middle grid)
-createGridInput("Rotate X:", rotateX, 180, 85, function(val) rotateX = tonumber(val) or rotateX end)
-createGridInput("Rotate Y:", rotateY, 180, 115, function(val) rotateY = tonumber(val) or rotateY end)
-createGridInput("Rotate Z:", rotateZ, 180, 145, function(val) rotateZ = tonumber(val) or rotateZ end)
-
--- Column 3: Scaling (Right grid)
-createGridInput("Scale X:", scaleX, 350, 85, function(val) scaleX = tonumber(val) or scaleX end)
-createGridInput("Scale Y:", scaleY, 350, 115, function(val) scaleY = tonumber(val) or scaleY end)
-createGridInput("Scale Z:", scaleZ, 350, 145, function(val) scaleZ = tonumber(val) or scaleZ end)
-
--- Bottom Row Actions: Target Selections & Apply
+-- Target Leg Selection Switches
 local leftLegBtn = Instance.new("TextButton")
-leftLegBtn.Size = UDim2.new(0, 120, 0, 35)
-leftLegBtn.Position = UDim2.new(0, 10, 0, 190)
-leftLegBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
-leftLegBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-leftLegBtn.Text = "Left Leg"
+leftLegBtn.Size = UDim2.new(0, 75, 0, 25)
+leftLegBtn.Position = UDim2.new(0, 165, 0, 140)
 leftLegBtn.Font = Enum.Font.SourceSansBold
-leftLegBtn.Parent = frame
+leftLegBtn.TextSize = 12
+leftLegBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+leftLegBtn.Parent = editPanel
 
 local rightLegBtn = Instance.new("TextButton")
-rightLegBtn.Size = UDim2.new(0, 120, 0, 35)
-rightLegBtn.Position = UDim2.new(0, 140, 0, 190)
-rightLegBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-rightLegBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-rightLegBtn.Text = "Right Leg"
+rightLegBtn.Size = UDim2.new(0, 75, 0, 25)
+rightLegBtn.Position = UDim2.new(0, 245, 0, 140)
 rightLegBtn.Font = Enum.Font.SourceSansBold
-rightLegBtn.Parent = frame
+rightLegBtn.TextSize = 12
+rightLegBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+rightLegBtn.Parent = editPanel
 
 leftLegBtn.MouseButton1Click:Connect(function()
-	targetLeg = "Left Leg"
-	leftLegBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
-	rightLegBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	if accessoryList[selectedIndex] then
+		accessoryList[selectedIndex].targetLeg = "Left Leg"
+		updateEditUI()
+	end
 end)
 
 rightLegBtn.MouseButton1Click:Connect(function()
-	targetLeg = "Right Leg"
-	rightLegBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
-	leftLegBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	if accessoryList[selectedIndex] then
+		accessoryList[selectedIndex].targetLeg = "Right Leg"
+		updateEditUI()
+	end
 end)
 
+-- Action Execution Button
 local applyBtn = Instance.new("TextButton")
-applyBtn.Size = UDim2.new(0, 235, 0, 35)
-applyBtn.Position = UDim2.new(0, 275, 0, 190)
+applyBtn.Size = UDim2.new(0, 155, 0, 35)
+applyBtn.Position = UDim2.new(0, 165, 0, 190)
 applyBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
 applyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-applyBtn.Text = "APPLY / REFRESH"
+applyBtn.Text = "APPLY ALL"
 applyBtn.Font = Enum.Font.SourceSansBold
-applyBtn.TextSize = 16
-applyBtn.Parent = frame
+applyBtn.TextSize = 15
+applyBtn.Parent = editPanel
+applyBtn.MouseButton1Click:Connect(applyAllAccessories)
 
-applyBtn.MouseButton1Click:Connect(function()
-	applyAccessory()
+-- Interface Redraw Engine (Column 2)
+updateEditUI = function()
+	local data = accessoryList[selectedIndex]
+	if not data then return end
+	idBox.Text = tostring(data.id)
+	for prop, box in pairs(inputs) do
+		box.Text = tostring(data[prop])
+	end
+	if data.targetLeg == "Left Leg" then
+		leftLegBtn.BackgroundColor3 = Color3.fromRGB(0, 130, 0)
+		leftLegBtn.Text = "[Left Leg]"
+		rightLegBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+		rightLegBtn.Text = "Right Leg"
+	else
+		leftLegBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+		leftLegBtn.Text = "Left Leg"
+		rightLegBtn.BackgroundColor3 = Color3.fromRGB(0, 130, 0)
+		rightLegBtn.Text = "[Right Leg]"
+	end
+end
+
+-- List Construction Engine (Column 1 Manager)
+updateSlotUI = function()
+	slotPanel:ClearAllChildren()
+	
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0, 4)
+	layout.Parent = slotPanel
+	
+	for i, data in ipairs(accessoryList) do
+		local sFrame = Instance.new("Frame")
+		sFrame.Size = UDim2.new(1, 0, 0, 30)
+		sFrame.BackgroundTransparency = 1
+		sFrame.Parent = slotPanel
+		
+		local selBtn = Instance.new("TextButton")
+		selBtn.Size = UDim2.new(0, 120, 1, 0)
+		selBtn.BackgroundColor3 = (i == selectedIndex) and Color3.fromRGB(0, 90, 160) or Color3.fromRGB(40, 40, 40)
+		selBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		selBtn.Text = "Slot " .. tostring(i) .. " (" .. string.sub(data.targetLeg, 1, 1) .. ")"
+		selBtn.Font = Enum.Font.SourceSans
+		selBtn.TextSize = 13
+		selBtn.Parent = sFrame
+		
+		selBtn.MouseButton1Click:Connect(function()
+			selectedIndex = i
+			updateSlotUI()
+			updateEditUI()
+		end)
+		
+		local delBtn = Instance.new("TextButton")
+		delBtn.Size = UDim2.new(0, 45, 1, 0)
+		delBtn.Position = UDim2.new(0, 125, 0, 0)
+		delBtn.BackgroundColor3 = Color3.fromRGB(130, 30, 30)
+		delBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		delBtn.Text = "X"
+		delBtn.Font = Enum.Font.SourceSansBold
+		delBtn.Parent = sFrame
+		
+		delBtn.MouseButton1Click:Connect(function()
+			if #accessoryList > 1 then
+				table.remove(accessoryList, i)
+				if selectedIndex > #accessoryList then selectedIndex = #accessoryList end
+				updateSlotUI()
+				updateEditUI()
+			end
+		end)
+	end
+	
+	local addBtn = Instance.new("TextButton")
+	addBtn.Size = UDim2.new(1, 0, 0, 30)
+	addBtn.BackgroundColor3 = Color3.fromRGB(45, 85, 45)
+	addBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	addBtn.Text = "+ Add Accessory"
+	addBtn.Font = Enum.Font.SourceSansBold
+	addBtn.Parent = slotPanel
+	addBtn.MouseButton1Click:Connect(function()
+		table.insert(accessoryList, {id = 17121838966, targetLeg = "Left Leg", offsetX = 0, offsetY = 0, offsetZ = 0, rotateX = 0, rotateY = 0, rotateZ = 0, scaleX = 1, scaleY = 1, scaleZ = 1})
+		selectedIndex = #accessoryList
+		updateSlotUI()
+		updateEditUI()
+	end)
+end
+
+-- Preset Integration Logic (Column 3 Save/Load Panel)
+local savePanel = Instance.new("Frame")
+savePanel.Size = UDim2.new(0, 180, 0, 35)
+savePanel.Position = UDim2.new(0, 530, 0, 255)
+savePanel.BackgroundTransparency = 1
+savePanel.Parent = frame
+
+local presetNameBox = Instance.new("TextBox")
+presetNameBox.Size = UDim2.new(0, 115, 1, 0)
+presetNameBox.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+presetNameBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+presetNameBox.Text = "PresetName"
+presetNameBox.ClearTextOnFocus = true
+presetNameBox.TextSize = 12
+presetNameBox.Parent = savePanel
+
+local saveBtn = Instance.new("TextButton")
+saveBtn.Size = UDim2.new(0, 60, 1, 0)
+saveBtn.Position = UDim2.new(0, 120, 0, 0)
+saveBtn.BackgroundColor3 = Color3.fromRGB(110, 80, 20)
+saveBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+saveBtn.Text = "SAVE"
+saveBtn.Font = Enum.Font.SourceSansBold
+saveBtn.TextSize = 13
+saveBtn.Parent = savePanel
+
+saveBtn.MouseButton1Click:Connect(function()
+	local name = presetNameBox.Text
+	if name ~= "" and writefile then
+		local json = HttpService:JSONEncode(accessoryList)
+		local success = pcall(function()
+			writefile(FOLDER_NAME .. "/" .. name .. ".txt", json)
+		end)
+		if success then
+			presetNameBox.Text = "Saved!"
+			task.wait(1)
+			presetNameBox.Text = "PresetName"
+			updatePresetUI()
+		end
+	end
 end)
 
-player.CharacterAdded:Connect(function(newCharacter)
-	task.wait(1) 
-	applyAccessory()
+updatePresetUI = function()
+	presetPanel:ClearAllChildren()
+	local pLayout = Instance.new("UIListLayout")
+	pLayout.Padding = UDim.new(0, 4)
+	pLayout.Parent = presetPanel
+	
+	if not listfiles then return end
+	local success, files = pcall(function() return listfiles(FOLDER_NAME) end)
+	if not success or not files then return end
+	
+	for _, path in ipairs(files) do
+		local filename = string.match(path, "([^/]+)%.txt$") or string.match(path, "([^\\]+)%.txt$")
+		if filename then
+			local pFrame = Instance.new("Frame")
+			pFrame.Size = UDim2.new(1, 0, 0, 25)
+			pFrame.BackgroundTransparency = 1
+			pFrame.Parent = presetPanel
+			
+			local loadBtn = Instance.new("TextButton")
+			loadBtn.Size = UDim2.new(1, 0, 1, 0)
+			loadBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+			loadBtn.TextColor3 = Color3.fromRGB(230, 230, 230)
+			loadBtn.Text = filename
+			loadBtn.TextSize = 13
+			loadBtn.Parent = pFrame
+			
+			loadBtn.MouseButton1Click:Connect(function()
+				if readfile then
+					local dataSuccess, content = pcall(function() return readfile(path) end)
+					if dataSuccess then
+						local tableSuccess, decoded = pcall(function() return HttpService:JSONDecode(content) end)
+						if tableSuccess and type(decoded) == "table" then
+							accessoryList = decoded
+							selectedIndex = 1
+							updateSlotUI()
+							updateEditUI()
+							applyAllAccessories()
+						end
+					end
+				end
+			end)
+		end
+	end
+end
+
+-- Initialize Components and Spawn Thread Connections
+updateSlotUI()
+updateEditUI()
+updatePresetUI()
+
+player.CharacterAdded:Connect(function()
+	task.wait(1)
+	applyAllAccessories()
 end)
 
 if player.Character then
-	task.spawn(applyAccessory)
+	task.spawn(applyAllAccessories)
 end
