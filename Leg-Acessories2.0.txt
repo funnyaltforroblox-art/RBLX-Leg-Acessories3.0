@@ -1,4 +1,4 @@
--- Lower Body/Leg Mesh & Model Customizer (R6 Wide Layout + Per-Accessory HP Threshold Controls)
+-- Lower Body/Leg Mesh & Model Customizer (R6 Wide Layout + Percentage-Based HP Threshold Fix)
 repeat task.wait() until game:IsLoaded()
 
 local Players = game:GetService("Players")
@@ -22,7 +22,7 @@ local accessoryList = {
 		targetPart = "Left Leg", 
 		firstPersonVisible = false,
 		hpEngineEnabled = false,   -- Per-accessory HP Mechanic Toggle
-		hpThreshold = 50,          -- Default HP Threshold Value
+		hpThreshold = 50,          -- Threshold in % (e.g., 50 = triggers at <= 50% HP)
 		partsData = {
 			["Handle"] = {offsetX = 0, offsetY = 0, offsetZ = 0, rotateX = 0, rotateY = 0, rotateZ = 0, scaleX = 1, scaleY = 1, scaleZ = 1}
 		}
@@ -260,39 +260,40 @@ local function applyAllAccessories()
 end
 
 --------------------------------------------------------------------------------
--- ENGINE #4 HP & THRESHOLD RENDERING LOOP
+-- DYNAMIC PERCENTAGE-BASED HP RENDERING ENGINE
 --------------------------------------------------------------------------------
 RunService.RenderStepped:Connect(function()
 	local character = player.Character
 	if not character then return end
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	local currentHealth = humanoid and humanoid.Health or 100
+	
+	-- Calculate percentage health (0% to 100%)
+	local currentHealthPercent = 100
+	if humanoid and humanoid.MaxHealth > 0 then
+		currentHealthPercent = (humanoid.Health / humanoid.MaxHealth) * 100
+	end
 
 	for index, data in ipairs(accessoryList) do
 		local accessory = character:FindFirstChild("CustomLeg_" .. tostring(index))
 		if accessory then
-			-- Check if HP Mechanic is active for this accessory
 			local hpConditionMet = false
 			if data.hpEngineEnabled then
 				local threshold = data.hpThreshold or 50
-				hpConditionMet = (currentHealth <= threshold)
+				-- Triggers when current health % is AT or BELOW threshold %
+				hpConditionMet = (currentHealthPercent <= threshold)
 			end
 
 			for _, part in ipairs(accessory:GetDescendants()) do
 				if part:IsA("BasePart") then
 					if data.hpEngineEnabled then
 						if hpConditionMet then
-							-- HP threshold triggered -> Force render (visible)
 							part.LocalTransparencyModifier = 0
 						else
-							-- Threshold not reached -> Hide
 							part.LocalTransparencyModifier = 1
 						end
 					elseif data.firstPersonVisible then
-						-- Override First Person transparency
 						part.LocalTransparencyModifier = 0
 					else
-						-- Default engine culling
 						part.LocalTransparencyModifier = part.Transparency
 					end
 				end
@@ -569,9 +570,6 @@ fpToggleBtn.MouseButton1Click:Connect(function()
 	end
 end)
 
---------------------------------------------------------------------------------
--- NEW CONTROLS: HP MECHANIC TOGGLE & HP THRESHOLD INPUT
---------------------------------------------------------------------------------
 local hpToggleBtn = Instance.new("TextButton")
 hpToggleBtn.Size = UDim2.new(0, 149, 0, 22)
 hpToggleBtn.Position = UDim2.new(0, 165, 0, 195)
@@ -595,7 +593,7 @@ hpLabel.Size = UDim2.new(0, 75, 0, 20)
 hpLabel.Position = UDim2.new(0, 0, 0, 222)
 hpLabel.BackgroundTransparency = 1
 hpLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-hpLabel.Text = "HP Limit:"
+hpLabel.Text = "HP Limit (%):"
 hpLabel.TextSize = 12
 hpLabel.TextXAlignment = Enum.TextXAlignment.Left
 hpLabel.Parent = editPanel
@@ -610,14 +608,22 @@ hpThresholdBox.Text = "50"
 hpThresholdBox.TextSize = 12
 hpThresholdBox.Parent = editPanel
 
-hpThresholdBox.FocusLost:Connect(function()
+local function commitHPThreshold()
 	local data = accessoryList[selectedIndex]
 	if data then
 		local numValue = tonumber(hpThresholdBox.Text)
 		if numValue then
-			data.hpThreshold = math.clamp(numValue, 0, 10000)
+			data.hpThreshold = math.clamp(numValue, 0, 100)
 		end
 		hpThresholdBox.Text = tostring(data.hpThreshold or 50)
+	end
+end
+
+hpThresholdBox.FocusLost:Connect(commitHPThreshold)
+hpThresholdBox:GetPropertyChangedSignal("Text"):Connect(function()
+	local numValue = tonumber(hpThresholdBox.Text)
+	if numValue and accessoryList[selectedIndex] then
+		accessoryList[selectedIndex].hpThreshold = math.clamp(numValue, 0, 100)
 	end
 end)
 
@@ -750,7 +756,6 @@ updateEditUI = function()
 	if data.hpEngineEnabled == nil then data.hpEngineEnabled = false end
 	if data.hpThreshold == nil then data.hpThreshold = 50 end
 
-	-- Update First Person Toggle
 	if data.firstPersonVisible then
 		fpToggleBtn.Text = "FP VISIBLE: ON"
 		fpToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 90, 40)
@@ -759,7 +764,6 @@ updateEditUI = function()
 		fpToggleBtn.BackgroundColor3 = Color3.fromRGB(90, 40, 40)
 	end
 
-	-- Update HP Engine Toggle & Threshold Field
 	if data.hpEngineEnabled then
 		hpToggleBtn.Text = "HP ENGINE: ON"
 		hpToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 90, 40)
@@ -980,4 +984,4 @@ end)
 if player.Character then
 	task.spawn(applyAllAccessories)
 end
-print("whynot")
+print("wedidii")
