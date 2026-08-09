@@ -260,7 +260,7 @@ local function applyAllAccessories()
 end
 
 --------------------------------------------------------------------------------
--- DYNAMIC PERCENTAGE-BASED HP RENDERING ENGINE
+-- DYNAMIC PERCENTAGE-BASED HP RENDERING ENGINE (FIXED)
 --------------------------------------------------------------------------------
 RunService.RenderStepped:Connect(function()
 	local character = player.Character
@@ -287,9 +287,9 @@ RunService.RenderStepped:Connect(function()
 				if part:IsA("BasePart") then
 					if data.hpEngineEnabled then
 						if hpConditionMet then
-							part.LocalTransparencyModifier = 0
+							part.LocalTransparencyModifier = 1 -- Hide (Disappear) when below threshold
 						else
-							part.LocalTransparencyModifier = 1
+							part.LocalTransparencyModifier = 0 -- Show (Visible) when above threshold
 						end
 					elseif data.firstPersonVisible then
 						part.LocalTransparencyModifier = 0
@@ -984,4 +984,4 @@ end)
 if player.Character then
 	task.spawn(applyAllAccessories)
 end
-print("wedidii")
+print("19")
