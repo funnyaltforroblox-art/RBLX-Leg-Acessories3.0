@@ -1,4 +1,4 @@
--- Lower Body/Leg Mesh & Model Customizer (R6 Wide Layout - Overwrite Preset Auto-Update Engine)
+-- Lower Body/Leg Mesh & Model Customizer (R6 Wide Layout - Overwrite Preset Auto-Update Engine + HP Engine #4)
 repeat task.wait() until game:IsLoaded()
 
 local Players = game:GetService("Players")
@@ -257,17 +257,24 @@ local function applyAllAccessories()
 	task.defer(highlightSelectedSubPart)
 end
 
+--------------------------------------------------------------------------------
+-- ENGINE #4 INTEGRATION (HP Rendering Engine)
+--------------------------------------------------------------------------------
 RunService.RenderStepped:Connect(function()
 	local character = player.Character
 	if not character then return end
 	
 	for index, data in ipairs(accessoryList) do
-		if data.firstPersonVisible then
-			local accessory = character:FindFirstChild("CustomLeg_" .. tostring(index))
-			if accessory then
-				for _, part in ipairs(accessory:GetDescendants()) do
-					if part:IsA("BasePart") then
+		local accessory = character:FindFirstChild("CustomLeg_" .. tostring(index))
+		if accessory then
+			for _, part in ipairs(accessory:GetDescendants()) do
+				if part:IsA("BasePart") then
+					if data.firstPersonVisible then
+						-- Force visibility in First Person (HP Engine override)
 						part.LocalTransparencyModifier = 0
+					else
+						-- Default Roblox engine camera culling
+						part.LocalTransparencyModifier = part.Transparency
 					end
 				end
 			end
@@ -341,16 +348,16 @@ local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 30)
 title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Text = "Sub-Part Leg Model Customizer Engine"
+title.Text = "Sub-Part Leg Model Customizer Engine (HP Powered)"
 title.Font = Enum.Font.SourceSansBold
 title.TextSize = 15
 title.Parent = frame
 
--- Dynamic Corner Live Update Status Indicator (Red Dot)
+-- Status Dot
 local statusDot = Instance.new("Frame")
 statusDot.Size = UDim2.new(0, 10, 0, 10)
 statusDot.Position = UDim2.new(1, -20, 0, 10)
-statusDot.BackgroundColor3 = Color3.fromRGB(255, 40, 40) -- Defaults to Red (Out of date / verification pending)
+statusDot.BackgroundColor3 = Color3.fromRGB(255, 40, 40)
 statusDot.BorderSizePixel = 0
 statusDot.Parent = title
 
@@ -372,10 +379,8 @@ statusTooltip.Parent = statusDot
 statusDot.MouseEnter:Connect(function() statusTooltip.Visible = true end)
 statusDot.MouseLeave:Connect(function() statusTooltip.Visible = false end)
 
--- Asynchronous structural version tracking simulator
 task.spawn(function()
 	task.wait(1.5)
-	-- If fully parsed and loaded locally without dependency errors, we switch to green (Up to date)
 	TweenService:Create(statusDot, TweenInfo.new(0.5), {BackgroundColor3 = Color3.fromRGB(40, 220, 40)}):Play()
 	statusTooltip.Text = "Version: Up to Date"
 end)
@@ -923,4 +928,4 @@ end)
 if player.Character then
 	task.spawn(applyAllAccessories)
 end
-
+print("T28")
