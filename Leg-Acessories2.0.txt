@@ -1,4 +1,4 @@
--- Lower Body/Leg Mesh & Model Customizer (R6 Wide Layout + Percentage-Based HP Threshold Fix)
+-- Lower Body/Leg Mesh & Model Customizer (R6 Wide Layout + Percentage-Based HP Threshold Fix + RGB Color System)
 repeat task.wait() until game:IsLoaded()
 
 local Players = game:GetService("Players")
@@ -24,7 +24,12 @@ local accessoryList = {
 		hpEngineEnabled = false,   -- Per-accessory HP Mechanic Toggle
 		hpThreshold = 50,          -- Threshold in % (e.g., 50 = triggers at <= 50% HP)
 		partsData = {
-			["Handle"] = {offsetX = 0, offsetY = 0, offsetZ = 0, rotateX = 0, rotateY = 0, rotateZ = 0, scaleX = 1, scaleY = 1, scaleZ = 1}
+			["Handle"] = {
+				offsetX = 0, offsetY = 0, offsetZ = 0, 
+				rotateX = 0, rotateY = 0, rotateZ = 0, 
+				scaleX = 1, scaleY = 1, scaleZ = 1,
+				colorR = 255, colorG = 255, colorB = 255 -- Integrated RGB Defaults
+			}
 		}
 	}
 }
@@ -99,7 +104,12 @@ local function scanAssetAndPopulateData(slotIndex)
 			handle.Name = "Handle"
 			
 			if not data.partsData["Handle"] then
-				data.partsData["Handle"] = {offsetX = 0, offsetY = 0, offsetZ = 0, rotateX = 0, rotateY = 0, rotateZ = 0, scaleX = 1, scaleY = 1, scaleZ = 1}
+				data.partsData["Handle"] = {
+					offsetX = 0, offsetY = 0, offsetZ = 0, 
+					rotateX = 0, rotateY = 0, rotateZ = 0, 
+					scaleX = 1, scaleY = 1, scaleZ = 1,
+					colorR = 255, colorG = 255, colorB = 255
+				}
 			end
 			
 			local partCounter = 1
@@ -123,7 +133,8 @@ local function scanAssetAndPopulateData(slotIndex)
 						data.partsData[obj.Name] = {
 							offsetX = 0, offsetY = 0, offsetZ = 0, 
 							rotateX = 0, rotateY = 0, rotateZ = 0, 
-							scaleX = defaultX, scaleY = defaultY, scaleZ = defaultZ
+							scaleX = defaultX, scaleY = defaultY, scaleZ = defaultZ,
+							colorR = 255, colorG = 255, colorB = 255
 						}
 					end
 				end
@@ -186,7 +197,12 @@ local function applyAllAccessories()
 							structuralOffsets[obj.Name] = handle.CFrame:ToObjectSpace(obj.CFrame)
 							
 							if not data.partsData[obj.Name] then
-								data.partsData[obj.Name] = {offsetX = 0, offsetY = 0, offsetZ = 0, rotateX = 0, rotateY = 0, rotateZ = 0, scaleX = 1, scaleY = 1, scaleZ = 1}
+								data.partsData[obj.Name] = {
+									offsetX = 0, offsetY = 0, offsetZ = 0, 
+									rotateX = 0, rotateY = 0, rotateZ = 0, 
+									scaleX = 1, scaleY = 1, scaleZ = 1,
+									colorR = 255, colorG = 255, colorB = 255
+								}
 							end
 						end
 					end
@@ -205,6 +221,12 @@ local function applyAllAccessories()
 								else
 									obj.Size = Vector3.new(pData.scaleX, pData.scaleY, pData.scaleZ)
 								end
+								
+								-- Apply Custom RGB Color
+								local cR = pData.colorR or 255
+								local cG = pData.colorG or 255
+								local cB = pData.colorB or 255
+								obj.Color = Color3.fromRGB(cR, cG, cB)
 							end
 						elseif obj:IsA("Weld") or obj:IsA("ManualWeld") or obj:IsA("WeldConstraint") or obj:IsA("Attachment") then
 							obj:Destroy()
@@ -260,14 +282,13 @@ local function applyAllAccessories()
 end
 
 --------------------------------------------------------------------------------
--- DYNAMIC PERCENTAGE-BASED HP RENDERING ENGINE (FIXED)
+-- DYNAMIC PERCENTAGE-BASED HP RENDERING ENGINE
 --------------------------------------------------------------------------------
 RunService.RenderStepped:Connect(function()
 	local character = player.Character
 	if not character then return end
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	
-	-- Calculate percentage health (0% to 100%)
 	local currentHealthPercent = 100
 	if humanoid and humanoid.MaxHealth > 0 then
 		currentHealthPercent = (humanoid.Health / humanoid.MaxHealth) * 100
@@ -279,7 +300,6 @@ RunService.RenderStepped:Connect(function()
 			local hpConditionMet = false
 			if data.hpEngineEnabled then
 				local threshold = data.hpThreshold or 50
-				-- Triggers when current health % is AT or BELOW threshold %
 				hpConditionMet = (currentHealthPercent <= threshold)
 			end
 
@@ -287,9 +307,9 @@ RunService.RenderStepped:Connect(function()
 				if part:IsA("BasePart") then
 					if data.hpEngineEnabled then
 						if hpConditionMet then
-							part.LocalTransparencyModifier = 1 -- Hide (Disappear) when below threshold
+							part.LocalTransparencyModifier = 1
 						else
-							part.LocalTransparencyModifier = 0 -- Show (Visible) when above threshold
+							part.LocalTransparencyModifier = 0
 						end
 					elseif data.firstPersonVisible then
 						part.LocalTransparencyModifier = 0
@@ -323,8 +343,8 @@ mainBtnCorner.CornerRadius = UDim.new(0, 8)
 mainBtnCorner.Parent = toggleBtn
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 720, 0, 360)
-frame.Position = UDim2.new(0.5, -360, 0.5, -180)
+frame.Size = UDim2.new(0, 720, 0, 380)
+frame.Position = UDim2.new(0.5, -360, 0.5, -190)
 frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 frame.BorderSizePixel = 2
 frame.Visible = true
@@ -368,26 +388,26 @@ local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 30)
 title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Text = "Sub-Part Leg Customizer Engine (HP Engine #4)"
+title.Text = "Sub-Part Leg Customizer Engine (HP Engine + RGB Color)"
 title.Font = Enum.Font.SourceSansBold
 title.TextSize = 15
 title.Parent = frame
 
 local slotPanel = Instance.new("ScrollingFrame")
-slotPanel.Size = UDim2.new(0, 180, 0, 315)
+slotPanel.Size = UDim2.new(0, 180, 0, 335)
 slotPanel.Position = UDim2.new(0, 10, 0, 35)
 slotPanel.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 slotPanel.CanvasSize = UDim2.new(0, 0, 2, 0)
 slotPanel.Parent = frame
 
 local editPanel = Instance.new("Frame")
-editPanel.Size = UDim2.new(0, 320, 0, 315)
+editPanel.Size = UDim2.new(0, 320, 0, 335)
 editPanel.Position = UDim2.new(0, 200, 0, 35)
 editPanel.BackgroundTransparency = 1
 editPanel.Parent = frame
 
 local presetPanel = Instance.new("ScrollingFrame")
-presetPanel.Size = UDim2.new(0, 180, 0, 275)
+presetPanel.Size = UDim2.new(0, 180, 0, 295)
 presetPanel.Position = UDim2.new(0, 530, 0, 35)
 presetPanel.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 presetPanel.CanvasSize = UDim2.new(0, 0, 2, 0)
@@ -454,7 +474,7 @@ local function updateSubPartDropdown()
 end
 
 local inputs = {}
-local function createEditInput(labelName, property, x, y)
+local function createEditInput(labelName, property, x, y, isColor)
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.new(0, 75, 0, 20)
 	label.Position = UDim2.new(0, x, 0, y)
@@ -479,14 +499,18 @@ local function createEditInput(labelName, property, x, y)
 		if data and data.partsData[selectedSubPartName] then
 			local numValue = tonumber(box.Text)
 			if numValue then
+				if isColor then
+					numValue = math.clamp(math.floor(numValue), 0, 255)
+				end
 				data.partsData[selectedSubPartName][property] = numValue
 			end
-			box.Text = tostring(data.partsData[selectedSubPartName][property] or 0)
+			box.Text = tostring(data.partsData[selectedSubPartName][property] or (isColor and 255 or 0))
 		end
 	end)
 	inputs[property] = box
 end
 
+-- Position & Angle Inputs
 createEditInput("Offset X:", "offsetX", 0, 65)
 createEditInput("Offset Y:", "offsetY", 0, 90)
 createEditInput("Offset Z:", "offsetZ", 0, 115)
@@ -498,6 +522,11 @@ createEditInput("Rotate Z:", "rotateZ", 165, 115)
 createEditInput("Scale X:", "scaleX", 0, 145)
 createEditInput("Scale Y:", "scaleY", 0, 170)
 createEditInput("Scale Z:", "scaleZ", 0, 195)
+
+-- Integrated RGB Controls
+createEditInput("Color R:", "colorR", 0, 222, true)
+createEditInput("Color G:", "colorG", 0, 247, true)
+createEditInput("Color B:", "colorB", 0, 272, true)
 
 local idLabel = Instance.new("TextLabel")
 idLabel.Size = UDim2.new(0, 60, 0, 24)
@@ -590,7 +619,7 @@ end)
 
 local hpLabel = Instance.new("TextLabel")
 hpLabel.Size = UDim2.new(0, 75, 0, 20)
-hpLabel.Position = UDim2.new(0, 0, 0, 222)
+hpLabel.Position = UDim2.new(0, 165, 0, 222)
 hpLabel.BackgroundTransparency = 1
 hpLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 hpLabel.Text = "HP Limit (%):"
@@ -600,7 +629,7 @@ hpLabel.Parent = editPanel
 
 local hpThresholdBox = Instance.new("TextBox")
 hpThresholdBox.Size = UDim2.new(0, 65, 0, 20)
-hpThresholdBox.Position = UDim2.new(0, 80, 0, 222)
+hpThresholdBox.Position = UDim2.new(0, 245, 0, 222)
 hpThresholdBox.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 hpThresholdBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 hpThresholdBox.ClearTextOnFocus = false
@@ -629,7 +658,7 @@ end)
 
 local applyBtn = Instance.new("TextButton")
 applyBtn.Size = UDim2.new(0, 149, 0, 22)
-applyBtn.Position = UDim2.new(0, 165, 0, 222)
+applyBtn.Position = UDim2.new(0, 165, 0, 247)
 applyBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
 applyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 applyBtn.Text = "APPLY ALL"
@@ -640,7 +669,7 @@ applyBtn.MouseButton1Click:Connect(applyAllAccessories)
 
 local inspectBtn = Instance.new("TextButton")
 inspectBtn.Size = UDim2.new(0, 315, 0, 30)
-inspectBtn.Position = UDim2.new(0, 0, 0, 255)
+inspectBtn.Position = UDim2.new(0, 0, 0, 300)
 inspectBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
 inspectBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 inspectBtn.Text = "INSPECT INDIVIDUAL PARTS"
@@ -776,13 +805,19 @@ updateEditUI = function()
 	if not data.partsData[selectedSubPartName] then
 		selectedSubPartName = "Handle"
 		if not data.partsData["Handle"] then
-			data.partsData["Handle"] = {offsetX = 0, offsetY = 0, offsetZ = 0, rotateX = 0, rotateY = 0, rotateZ = 0, scaleX = 1, scaleY = 1, scaleZ = 1}
+			data.partsData["Handle"] = {
+				offsetX = 0, offsetY = 0, offsetZ = 0, 
+				rotateX = 0, rotateY = 0, rotateZ = 0, 
+				scaleX = 1, scaleY = 1, scaleZ = 1,
+				colorR = 255, colorG = 255, colorB = 255
+			}
 		end
 	end
 	
 	local pData = data.partsData[selectedSubPartName]
 	for prop, box in pairs(inputs) do
-		box.Text = tostring(pData[prop] or 0)
+		local defaultVal = (prop:sub(1, 5) == "color") and 255 or 0
+		box.Text = tostring(pData[prop] or defaultVal)
 	end
 	
 	for limbName, btn in pairs(targetButtons) do
@@ -862,7 +897,14 @@ updateSlotUI = function()
 			firstPersonVisible = false,
 			hpEngineEnabled = false,
 			hpThreshold = 50,
-			partsData = { ["Handle"] = {offsetX = 0, offsetY = 0, offsetZ = 0, rotateX = 0, rotateY = 0, rotateZ = 0, scaleX = 1, scaleY = 1, scaleZ = 1} }
+			partsData = { 
+				["Handle"] = {
+					offsetX = 0, offsetY = 0, offsetZ = 0, 
+					rotateX = 0, rotateY = 0, rotateZ = 0, 
+					scaleX = 1, scaleY = 1, scaleZ = 1,
+					colorR = 255, colorG = 255, colorB = 255
+				} 
+			}
 		})
 		selectedIndex = #accessoryList
 		selectedSubPartName = "Handle"
@@ -875,7 +917,7 @@ end
 
 local savePanel = Instance.new("Frame")
 savePanel.Size = UDim2.new(0, 180, 0, 30)
-savePanel.Position = UDim2.new(0, 530, 0, 315)
+savePanel.Position = UDim2.new(0, 530, 0, 335)
 savePanel.BackgroundTransparency = 1
 savePanel.Parent = frame
 
@@ -984,4 +1026,4 @@ end)
 if player.Character then
 	task.spawn(applyAllAccessories)
 end
-print("19")
+print("oorah")
