@@ -1,4 +1,4 @@
--- Lower Body/Leg Mesh & Model Customizer (R6 Wide Layout + Percentage-Based HP Threshold Fix + RGB Color System)
+-- Lower Body/Leg Mesh & Model Customizer (R6 Wide Layout + HP Threshold + RGB Color & Custom Color Toggle)
 repeat task.wait() until game:IsLoaded()
 
 local Players = game:GetService("Players")
@@ -22,12 +22,13 @@ local accessoryList = {
 		targetPart = "Left Leg", 
 		firstPersonVisible = false,
 		hpEngineEnabled = false,   -- Per-accessory HP Mechanic Toggle
-		hpThreshold = 50,          -- Threshold in % (e.g., 50 = triggers at <= 50% HP)
+		hpThreshold = 50,          -- Threshold in %
 		partsData = {
 			["Handle"] = {
 				offsetX = 0, offsetY = 0, offsetZ = 0, 
 				rotateX = 0, rotateY = 0, rotateZ = 0, 
 				scaleX = 1, scaleY = 1, scaleZ = 1,
+				useColor = false,                       -- Toggle custom color override
 				colorR = 255, colorG = 255, colorB = 255 -- Integrated RGB Defaults
 			}
 		}
@@ -108,6 +109,7 @@ local function scanAssetAndPopulateData(slotIndex)
 					offsetX = 0, offsetY = 0, offsetZ = 0, 
 					rotateX = 0, rotateY = 0, rotateZ = 0, 
 					scaleX = 1, scaleY = 1, scaleZ = 1,
+					useColor = false,
 					colorR = 255, colorG = 255, colorB = 255
 				}
 			end
@@ -134,6 +136,7 @@ local function scanAssetAndPopulateData(slotIndex)
 							offsetX = 0, offsetY = 0, offsetZ = 0, 
 							rotateX = 0, rotateY = 0, rotateZ = 0, 
 							scaleX = defaultX, scaleY = defaultY, scaleZ = defaultZ,
+							useColor = false,
 							colorR = 255, colorG = 255, colorB = 255
 						}
 					end
@@ -201,6 +204,7 @@ local function applyAllAccessories()
 									offsetX = 0, offsetY = 0, offsetZ = 0, 
 									rotateX = 0, rotateY = 0, rotateZ = 0, 
 									scaleX = 1, scaleY = 1, scaleZ = 1,
+									useColor = false,
 									colorR = 255, colorG = 255, colorB = 255
 								}
 							end
@@ -222,11 +226,13 @@ local function applyAllAccessories()
 									obj.Size = Vector3.new(pData.scaleX, pData.scaleY, pData.scaleZ)
 								end
 								
-								-- Apply Custom RGB Color
-								local cR = pData.colorR or 255
-								local cG = pData.colorG or 255
-								local cB = pData.colorB or 255
-								obj.Color = Color3.fromRGB(cR, cG, cB)
+								-- Conditional Custom RGB Color Override
+								if pData.useColor then
+									local cR = pData.colorR or 255
+									local cG = pData.colorG or 255
+									local cB = pData.colorB or 255
+									obj.Color = Color3.fromRGB(cR, cG, cB)
+								end
 							end
 						elseif obj:IsA("Weld") or obj:IsA("ManualWeld") or obj:IsA("WeldConstraint") or obj:IsA("Attachment") then
 							obj:Destroy()
@@ -388,7 +394,7 @@ local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 30)
 title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Text = "Sub-Part Leg Customizer Engine (HP Engine + RGB Color)"
+title.Text = "Sub-Part Leg Customizer Engine (Color Toggle + RGB Controls)"
 title.Font = Enum.Font.SourceSansBold
 title.TextSize = 15
 title.Parent = frame
@@ -527,6 +533,26 @@ createEditInput("Scale Z:", "scaleZ", 0, 195)
 createEditInput("Color R:", "colorR", 0, 222, true)
 createEditInput("Color G:", "colorG", 0, 247, true)
 createEditInput("Color B:", "colorB", 0, 272, true)
+
+-- Sub-part Color Toggle Button
+local colorToggleBtn = Instance.new("TextButton")
+colorToggleBtn.Size = UDim2.new(0, 149, 0, 20)
+colorToggleBtn.Position = UDim2.new(0, 0, 0, 297)
+colorToggleBtn.Font = Enum.Font.SourceSansBold
+colorToggleBtn.TextSize = 11
+colorToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+colorToggleBtn.Text = "USE COLOR: OFF"
+colorToggleBtn.BackgroundColor3 = Color3.fromRGB(90, 40, 40)
+colorToggleBtn.Parent = editPanel
+
+colorToggleBtn.MouseButton1Click:Connect(function()
+	local data = accessoryList[selectedIndex]
+	if data and data.partsData[selectedSubPartName] then
+		local pData = data.partsData[selectedSubPartName]
+		pData.useColor = not pData.useColor
+		updateEditUI()
+	end
+end)
 
 local idLabel = Instance.new("TextLabel")
 idLabel.Size = UDim2.new(0, 60, 0, 24)
@@ -668,13 +694,13 @@ applyBtn.Parent = editPanel
 applyBtn.MouseButton1Click:Connect(applyAllAccessories)
 
 local inspectBtn = Instance.new("TextButton")
-inspectBtn.Size = UDim2.new(0, 315, 0, 30)
-inspectBtn.Position = UDim2.new(0, 0, 0, 300)
+inspectBtn.Size = UDim2.new(0, 149, 0, 22)
+inspectBtn.Position = UDim2.new(0, 165, 0, 272)
 inspectBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
 inspectBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-inspectBtn.Text = "INSPECT INDIVIDUAL PARTS"
+inspectBtn.Text = "INSPECT PARTS"
 inspectBtn.Font = Enum.Font.SourceSansBold
-inspectBtn.TextSize = 13
+inspectBtn.TextSize = 11
 inspectBtn.Parent = editPanel
 
 local inspectBtnStroke = Instance.new("UIStroke")
@@ -683,7 +709,7 @@ inspectBtnStroke.Thickness = 1.5
 inspectBtnStroke.Parent = inspectBtn
 
 local inspectBtnCorner = Instance.new("UICorner")
-inspectBtnCorner.CornerRadius = UDim.new(0, 6)
+inspectBtnCorner.CornerRadius = UDim.new(0, 4)
 inspectBtnCorner.Parent = inspectBtn
 
 local function togglePartExplosion()
@@ -697,7 +723,7 @@ local function togglePartExplosion()
 
 	if isExploded then
 		clearActiveHighlight()
-		inspectBtn.Text = "COMBINE CUSTOM MODELS"
+		inspectBtn.Text = "COMBINE PARTS"
 		inspectBtn.BackgroundColor3 = Color3.fromRGB(150, 35, 35)
 		inspectBtnStroke.Color = Color3.fromRGB(255, 100, 100)
 
@@ -748,7 +774,7 @@ local function togglePartExplosion()
 			end
 		end
 	else
-		inspectBtn.Text = "INSPECT INDIVIDUAL PARTS"
+		inspectBtn.Text = "INSPECT PARTS"
 		inspectBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
 		inspectBtnStroke.Color = Color3.fromRGB(0, 150, 255)
 
@@ -809,12 +835,23 @@ updateEditUI = function()
 				offsetX = 0, offsetY = 0, offsetZ = 0, 
 				rotateX = 0, rotateY = 0, rotateZ = 0, 
 				scaleX = 1, scaleY = 1, scaleZ = 1,
+				useColor = false,
 				colorR = 255, colorG = 255, colorB = 255
 			}
 		end
 	end
 	
 	local pData = data.partsData[selectedSubPartName]
+	if pData.useColor == nil then pData.useColor = false end
+
+	if pData.useColor then
+		colorToggleBtn.Text = "USE COLOR: ON"
+		colorToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 90, 40)
+	else
+		colorToggleBtn.Text = "USE COLOR: OFF"
+		colorToggleBtn.BackgroundColor3 = Color3.fromRGB(90, 40, 40)
+	end
+
 	for prop, box in pairs(inputs) do
 		local defaultVal = (prop:sub(1, 5) == "color") and 255 or 0
 		box.Text = tostring(pData[prop] or defaultVal)
@@ -902,6 +939,7 @@ updateSlotUI = function()
 					offsetX = 0, offsetY = 0, offsetZ = 0, 
 					rotateX = 0, rotateY = 0, rotateZ = 0, 
 					scaleX = 1, scaleY = 1, scaleZ = 1,
+					useColor = false,
 					colorR = 255, colorG = 255, colorB = 255
 				} 
 			}
@@ -1026,4 +1064,4 @@ end)
 if player.Character then
 	task.spawn(applyAllAccessories)
 end
-print("oorah")
+print("triple T with his tung tung out")
